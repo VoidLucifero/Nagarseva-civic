@@ -1,0 +1,465 @@
+'use client'
+
+import { useState, useEffect } from 'react'
+import Link from 'next/link'
+import {
+  LayoutDashboard,
+  CheckCircle2,
+  Clock,
+  AlertTriangle,
+  FileText,
+  Search,
+  Filter,
+  ArrowUpDown,
+  Building2,
+  UserCheck,
+  Loader2,
+  ExternalLink,
+  BarChart3,
+  ListFilter,
+} from 'lucide-react'
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+} from 'recharts'
+import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
+import { Users } from 'lucide-react'
+import type { UserRecord } from '@/lib/db'
+import { mergeClientUsers, getClientUsers } from '@/lib/client-storage'
+
+export default function OfficialDashboardPage() {
+  const [issues, setIssues] = useState<Issue[]>([])
+  const [registeredUsers, setRegisteredUsers] = useState<UserRecord[]>([])
+  const [loading, setLoading] = useState(true)
+  const [activeTab, setActiveTab] = useState<'overview' | 'users' | 'analytics'>('overview')
+  const [statusFilter, setStatusFilter] = useState<string>('All')
+  const [deptFilter, setDeptFilter] = useState<string>('All')
+  const [searchQuery, setSearchQuery] = useState('')
+  const [updatingId, setUpdatingId] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch('/api/reports')
+      .then((res) => res.json())
+      .then((data) => {
+        if (Array.isArray(data)) setIssues(data)
+        else if (data?.issues) setIssues(data.issues)
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
+
+    fetch('/api/admin/users')
+      .then((res) => res.json())
+      .then((data) => {
+        const rawUsers = data?.users || []
+        const mergedUsers = mergeClientUsers(rawUsers)
+        setRegisteredUsers(mergedUsers)
+      })
+      .catch(() => {
+        setRegisteredUsers(getClientUsers())
+      })
+  }, [])
+
+  async function handleStatusUpdate(issueId: string, newStatus: IssueStatus) {
+    setUpdatingId(issueId)
+    try {
+      const res = await fetch(`/api/reports/${issueId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus }),
+      })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error || 'Failed to update status')
+
+      setIssues((prev) =>
+        prev.map((i) => (i.id === issueId ? { ...i, status: newStatus } : i)),
+      )
+      toast.success(`Complaint status updated to "${newStatus}"!`)
+    } catch (err: any) {
+      toast.error(err.message || 'Failed to update status')
+    } finally {
+      setUpdatingId(null)
+    }
+  }
+
+  const filtered = issues.filter((i) => {
+    if (statusFilter !== 'All' && i.status !== statusFilter) return false
+    if (deptFilter !== 'All' && i.department !== deptFilter) return false
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase()
+      if (!i.title.toLowerCase().includes(q) && !i.id.toLowerCase().includes(q) && !i.address.toLowerCase().includes(q)) {
+        return false
+      }
+    }
+    return true
+  })
+
+  const totalComplaints = issues.length
+  const inProgressCount = issues.filter((i) => i.status === 'in-progress').length
+  const assignedCount = issues.filter((i) => i.status === 'assigned').length
+  const resolvedCount = issues.filter((i) => i.status === 'resolved').length
+
+  const departments = Array.from(new Set(issues.map((i) => i.department).filter(Boolean)))
+
+  // Analytics Chart Data
+  const categoryChartData = Array.from(new Set(issues.map((i) => i.category))).map((cat) => ({
+    name: cat,
+    count: issues.filter((i) => i.category === cat).length,
+  }))
+
+  const statusChartData = [
+    { name: 'Submitted', count: issues.filter((i) => i.status === 'reported').length },
+    { name: 'Acknowledged', count: assignedCount },
+    { name: 'In Progress', count: inProgressCount },
+    { name: 'Resolved', count: resolvedCount },
+  ]
+
+  return (
+    <div className="min-h-screen bg-background pb-16">
+      <div className="mx-auto max-w-screen-2xl px-4 py-6 sm:px-6 lg:px-8">
+        {/* Header Title */}
+        <div className="mb-6 flex flex-col justify-between gap-4 sm:flex-row sm:items-center">
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <Building2 className="size-4" />
+              </span>
+              <h1 className="text-2xl font-extrabold tracking-tight text-foreground sm:text-3xl">
+                NagarSeva — Official Municipal Dashboard
+              </h1>
+            </div>
+            <p className="mt-1 text-sm text-muted-foreground">
+              Departmental portal for city officials to review, assign, and update civic complaint statuses.
+            </p>
+          </div>
+
+          {/* Overview vs Citizens Directory vs Analytics Tab Buttons */}
+          <div className="flex flex-wrap items-center rounded-xl bg-secondary p-1 border border-border gap-1">
+            <button
+              type="button"
+              onClick={() => setActiveTab('overview')}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                activeTab === 'overview'
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <ListFilter className="size-3.5" />
+              Overview &amp; Complaints
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('users')}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                activeTab === 'users'
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <Users className="size-3.5" />
+              Registered Citizens ({registeredUsers.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setActiveTab('analytics')}
+              className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all ${
+                activeTab === 'analytics'
+                  ? 'bg-card text-foreground shadow-sm'
+                  : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              <BarChart3 className="size-3.5" />
+              City Analytics
+            </button>
+          </div>
+        </div>
+
+        {/* Stats Row */}
+        <div className="mb-8 grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Total Complaints
+              </span>
+              <span className="flex size-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+                <FileText className="size-4" />
+              </span>
+            </div>
+            <p className="mt-3 text-3xl font-extrabold text-foreground tabular-nums">{totalComplaints}</p>
+          </div>
+
+          <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Acknowledged
+              </span>
+              <span className="flex size-8 items-center justify-center rounded-lg bg-blue-500/10 text-blue-600">
+                <UserCheck className="size-4" />
+              </span>
+            </div>
+            <p className="mt-3 text-3xl font-extrabold text-foreground tabular-nums">{assignedCount}</p>
+          </div>
+
+          <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                In Progress
+              </span>
+              <span className="flex size-8 items-center justify-center rounded-lg bg-amber-500/10 text-amber-600">
+                <Clock className="size-4" />
+              </span>
+            </div>
+            <p className="mt-3 text-3xl font-extrabold text-foreground tabular-nums">{inProgressCount}</p>
+          </div>
+
+          <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                Resolved
+              </span>
+              <span className="flex size-8 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600">
+                <CheckCircle2 className="size-4" />
+              </span>
+            </div>
+            <p className="mt-3 text-3xl font-extrabold text-foreground tabular-nums">{resolvedCount}</p>
+          </div>
+        </div>
+
+        {activeTab === 'users' ? (
+          /* Registered Citizens Directory View */
+          <div className="mb-8 overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+            <div className="border-b border-border p-4 bg-secondary/30">
+              <h2 className="text-sm font-bold text-foreground flex items-center gap-2">
+                <Users className="size-4 text-primary" />
+                Registered Citizens &amp; User Accounts ({registeredUsers.length})
+              </h2>
+              <p className="text-xs text-muted-foreground mt-0.5">
+                Full list of citizens who signed up or logged in on the NagarSeva platform.
+              </p>
+            </div>
+            {registeredUsers.length === 0 ? (
+              <div className="p-8 text-center text-xs text-muted-foreground">
+                No citizens have registered yet. New sign ups will automatically appear here.
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead className="border-b border-border bg-secondary/50 font-semibold uppercase tracking-wider text-muted-foreground">
+                    <tr>
+                      <th className="px-4 py-3">Citizen Name</th>
+                      <th className="px-4 py-3">Phone Number</th>
+                      <th className="px-4 py-3">Account Tier</th>
+                      <th className="px-4 py-3">Civic Points</th>
+                      <th className="px-4 py-3">Reports Filed</th>
+                      <th className="px-4 py-3">Resolved</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {registeredUsers.map((user) => (
+                      <tr key={user.id} className="hover:bg-secondary/30 transition-colors">
+                        <td className="px-4 py-3 font-bold text-foreground flex items-center gap-2">
+                          <span className="flex size-7 items-center justify-center rounded-full bg-primary/10 text-primary text-[10px] font-bold">
+                            {user.initials}
+                          </span>
+                          {user.name}
+                        </td>
+                        <td className="px-4 py-3 font-mono text-muted-foreground">{user.phone}</td>
+                        <td className="px-4 py-3">
+                          <span className="inline-flex items-center rounded-full bg-accent/20 px-2 py-0.5 text-[10px] font-extrabold text-accent">
+                            {user.tier || 'Bronze'} Member
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 font-mono font-bold text-primary">{user.points || 0} pts</td>
+                        <td className="px-4 py-3 font-mono text-foreground">{user.reports || 0}</td>
+                        <td className="px-4 py-3 font-mono text-emerald-600 font-bold">{user.resolved || 0}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        ) : null}
+
+        {activeTab === 'analytics' ? (
+          /* City Analytics View */
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 mb-8">
+            <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+              <h2 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
+                <BarChart3 className="size-4 text-primary" />
+                Complaints by Category Breakdown
+              </h2>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={categoryChartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" vertical={false} />
+                    <XAxis dataKey="name" tick={{ fontSize: 11 }} />
+                    <YAxis allowDecimals={false} tick={{ fontSize: 11 }} />
+                    <RechartsTooltip />
+                    <Bar dataKey="count" fill="var(--primary)" radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-border bg-card p-5 shadow-sm">
+              <h2 className="text-sm font-bold text-foreground mb-4 flex items-center gap-2">
+                <Clock className="size-4 text-accent" />
+                Complaints Status Distribution
+              </h2>
+              <div className="h-64">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={statusChartData} layout="vertical">
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--border)" horizontal={false} />
+                    <XAxis type="number" allowDecimals={false} tick={{ fontSize: 11 }} />
+                    <YAxis dataKey="name" type="category" tick={{ fontSize: 11 }} width={90} />
+                    <RechartsTooltip />
+                    <Bar dataKey="count" fill="var(--accent)" radius={[0, 4, 4, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </div>
+        ) : null}
+
+        {/* Filter Controls & Search */}
+        <div className="mb-6 flex flex-col gap-4 rounded-xl border border-border bg-card p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search by Complaint ID, title, or area..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-muted-foreground">Status:</span>
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
+                className="h-9 rounded-lg border border-border bg-background px-3 text-xs font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="All">All Statuses</option>
+                <option value="reported">Submitted</option>
+                <option value="assigned">Acknowledged</option>
+                <option value="in-progress">In Progress</option>
+                <option value="resolved">Resolved</option>
+              </select>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-muted-foreground">Dept:</span>
+              <select
+                value={deptFilter}
+                onChange={(e) => setDeptFilter(e.target.value)}
+                className="h-9 rounded-lg border border-border bg-background px-3 text-xs font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+              >
+                <option value="All">All Departments</option>
+                {departments.map((d) => (
+                  <option key={d} value={d}>
+                    {d}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+        </div>
+
+        {/* Table of Complaints */}
+        <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
+          {loading ? (
+            <div className="flex h-64 items-center justify-center">
+              <Loader2 className="size-6 animate-spin text-primary" />
+            </div>
+          ) : filtered.length === 0 ? (
+            <div className="p-8 text-center text-muted-foreground">No complaints match current filters.</div>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-left text-xs">
+                <thead className="border-b border-border bg-secondary/50 font-semibold uppercase tracking-wider text-muted-foreground">
+                  <tr>
+                    <th className="px-4 py-3">ID</th>
+                    <th className="px-4 py-3">Complaint Details</th>
+                    <th className="px-4 py-3">Department</th>
+                    <th className="px-4 py-3">Reporter</th>
+                    <th className="px-4 py-3">Status</th>
+                    <th className="px-4 py-3 text-right">Official Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {filtered.map((item) => (
+                    <tr key={item.id} className="hover:bg-secondary/30 transition-colors">
+                      <td className="px-4 py-3 font-mono font-bold text-foreground">{item.id}</td>
+                      <td className="px-4 py-3 max-w-xs">
+                        <Link
+                          href={`/issue/${item.id}`}
+                          className="font-bold text-foreground hover:text-primary transition-colors flex items-center gap-1"
+                        >
+                          {item.title}
+                          <ExternalLink className="size-3 text-muted-foreground" />
+                        </Link>
+                        <p className="text-[11px] text-muted-foreground truncate">{item.address}</p>
+                      </td>
+                      <td className="px-4 py-3 font-medium text-foreground">{item.department || 'Unassigned'}</td>
+                      <td className="px-4 py-3 text-muted-foreground">{item.reporter || 'Citizen'}</td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`inline-flex items-center rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                            item.status === 'resolved'
+                              ? 'bg-emerald-500/20 text-emerald-600'
+                              : item.status === 'in-progress'
+                              ? 'bg-amber-500/20 text-amber-600'
+                              : item.status === 'assigned'
+                              ? 'bg-blue-500/15 text-blue-600'
+                              : 'bg-yellow-500/15 text-yellow-600'
+                          }`}
+                        >
+                          {item.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {item.status !== 'in-progress' && (
+                            <Button
+                              size="xs"
+                              variant="outline"
+                              disabled={updatingId === item.id}
+                              onClick={() => handleStatusUpdate(item.id, 'in-progress')}
+                              className="text-[10px]"
+                            >
+                              Work In Progress
+                            </Button>
+                          )}
+                          {item.status !== 'resolved' && (
+                            <Button
+                              size="xs"
+                              disabled={updatingId === item.id}
+                              onClick={() => handleStatusUpdate(item.id, 'resolved')}
+                              className="bg-emerald-600 text-white hover:bg-emerald-700 text-[10px]"
+                            >
+                              Mark Resolved
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}

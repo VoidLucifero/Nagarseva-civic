@@ -1,0 +1,139 @@
+{
+  "users": [
+    {
+      "id": "u-maya",
+      "name": "Maya Chen",
+      "phone": "9876543210",
+      "initials": "MC",
+      "tier": "Gold",
+      "points": 1420,
+      "reports": 18,
+      "resolved": 14
+    },
+    {
+      "id": "u-devon",
+      "name": "Devon Vance",
+      "phone": "9000000001",
+      "initials": "DV",
+      "tier": "Gold",
+      "points": 2180,
+      "reports": 27,
+      "resolved": 22
+    },
+    {
+      "id": "u-sarah",
+      "name": "Sarah Jenkins",
+      "phone": "9000000002",
+      "initials": "SJ",
+      "tier": "Silver",
+      "points": 1150,
+      "reports": 14,
+      "resolved": 11
+    }
+  ],
+  "issues": [
+    {
+      "id": "CF-1042",
+      "title": "Deep pothole near Elm St crosswalk",
+      "category": "Pothole",
+      "description": "Large pothole roughly 40cm wide forming at the pedestrian crosswalk on Elm St. Cars are swerving to avoid it, creating a hazard for people crossing.",
+      "photo": "/issues/pothole.png",
+      "afterPhoto": null,
+      "status": "in-progress",
+      "severity": "High",
+      "upvotes": 47,
+      "confirmations": 12,
+      "reporter": "Maya Chen",
+      "reporterId": "u-maya",
+      "ward": "Ward 3 · Riverside",
+      "department": "Roads & Highways",
+      "address": "412 Elm St",
+      "distanceKm": 0.3,
+      "mapX": 54,
+      "mapY": 38,
+      "createdAt": "2026-08-06T08:14:00Z",
+      "updatedAt": "2026-08-09T14:30:00Z",
+      "aiConfidence": 96,
+      "timeline": [
+        {
+          "stage": "reported",
+          "label": "Reported",
+          "at": "2026-08-06T08:14:00Z",
+          "note": "Submitted with photo + GPS"
+        },
+        {
+          "stage": "verified",
+          "label": "Triage verified",
+          "at": "2026-08-06T09:02:00Z",
+          "note": "AI confidence 96% · Priority High"
+        },
+        {
+          "stage": "assigned",
+          "label": "Assigned to crew",
+          "at": "2026-08-07T11:45:00Z",
+          "note": "Roads Crew #4 scheduled"
+        },
+        {
+          "stage": "in-progress",
+          "label": "Work in progress",
+          "at": "2026-08-09T14:30:00Z",
+          "note": "Asphalt patching ongoing"
+        }
+      ],
+      "comments": [
+        {
+          "id": "c-1",
+          "author": "Roads Department",
+          "role": "department",
+          "at": "2026-08-07T11:46:00Z",
+          "text": "Crew scheduled for cold-mix patch Friday morning."
+        },
+        {
+          "id": "c-2",
+          "author": "Maya Chen",
+          "role": "citizen",
+          "at": "2026-08-08T09:12:00Z",
+          "text": "Thanks! Cones were placed yesterday which helped a lot."
+        }
+      ]
+    },
+    {
+      "id": "CF-1039",
+      "title": "Flickering street lamp at Pine & 4th",
+      "category": "Streetlight",
+      "description": "Streetlight has been cycling on and off every 30 seconds since Monday night.",
+      "photo": "/issues/streetlight.png",
+      "afterPhoto": null,
+      "status": "assigned",
+      "severity": "Medium",
+      "upvotes": 19,
+      "confirmations": 4,
+      "reporter": "Devon Vance",
+      "reporterId": "u-devon",
+      "ward": "Ward 2 · Downtown",
+      "department": "Street Lighting",
+      "address": "Corner of Pine St & 4th Ave",
+      "distanceKm": 0.7,
+      "mapX": 32,
+      "mapY": 28,
+      "createdAt": "2026-08-08T21:04:00Z",
+      "updatedAt": "2026-08-09T08:10:00Z",
+      "aiConfidence": 91,
+      "timeline": [
+        {
+          "stage": "reported",
+          "label": "Reported",
+          "at": "2026-08-08T21:04:00Z",
+          "note": "Submitted by citizen"
+        },
+        {
+          "stage": "assigned",
+          "label": "Assigned to crew",
+          "at": "2026-08-09T08:10:00Z",
+          "note": "Electrical Services Unit B"
+        }
+      ],
+      "comments": []
+    }
+  ]
+}

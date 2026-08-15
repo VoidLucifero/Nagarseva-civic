@@ -1,0 +1,29 @@
+# Dependencies
+/node_modules
+/.pnpm-store
+
+# Next.js build output
+/.next/
+/out/
+
+# Production build
+/build
+
+# Vercel
+/.vercel
+
+# Environment & ZIPs / nested backups
+.env
+.env*.local
+*.zip
+civic-fix-complete/
+
+# Debug logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS metadata
+.DS_Store
+Thumbs.db

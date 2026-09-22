@@ -1,12 +1,29 @@
+'use client'
+
+import { useEffect, useState } from 'react'
 import { CheckCircle2, Clock, Users } from 'lucide-react'
 import { StatCounter } from '@/components/stat-counter'
-import { MOCK_STATS } from '@/lib/mock-data'
+import { getStats } from '@/lib/api'
+import type { CivicStats } from '@/lib/types'
 
 export function StatsBanner() {
+  const [data, setData] = useState<CivicStats>({
+    resolvedThisMonth: 342,
+    activeReporters: 1284,
+    avgResolutionDays: 4.2,
+    totalOpen: 128,
+  })
+
+  useEffect(() => {
+    getStats().then((res) => {
+      if (res) setData(res)
+    })
+  }, [])
+
   const stats = [
     {
       icon: CheckCircle2,
-      value: MOCK_STATS.resolvedThisMonth,
+      value: data.resolvedThisMonth,
       decimals: 0,
       suffix: '',
       label: 'issues resolved this month',
@@ -14,7 +31,7 @@ export function StatsBanner() {
     },
     {
       icon: Users,
-      value: MOCK_STATS.activeReporters,
+      value: data.activeReporters,
       decimals: 0,
       suffix: '',
       label: 'active reporters in your city',
@@ -22,7 +39,7 @@ export function StatsBanner() {
     },
     {
       icon: Clock,
-      value: MOCK_STATS.avgResolutionDays,
+      value: data.avgResolutionDays,
       decimals: 1,
       suffix: ' days',
       label: 'average resolution time',

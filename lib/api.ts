@@ -12,8 +12,33 @@ import { mergeClientIssues, saveClientIssue } from './client-storage'
 const delay = (ms = 400) => new Promise((resolve) => setTimeout(resolve, ms))
 
 export async function getStats() {
-  await delay(200)
-  return MOCK_STATS
+  const issues = await getIssues()
+  if (!issues || issues.length === 0) return MOCK_STATS
+
+  const totalOpen = issues.filter((i) => i.status !== 'resolved').length
+  const resolvedIssues = issues.filter((i) => i.status === 'resolved')
+  const resolvedThisMonth = resolvedIssues.length
+
+  let avgResolutionDays = 4.2
+  if (resolvedIssues.length > 0) {
+    const totalDays = resolvedIssues.reduce((acc, i) => {
+      const created = new Date(i.createdAt).getTime()
+      const updated = new Date(i.updatedAt).getTime()
+      const diffDays = Math.max(0.1, (updated - created) / (1000 * 60 * 60 * 24))
+      return acc + diffDays
+    }, 0)
+    avgResolutionDays = Number((totalDays / resolvedIssues.length).toFixed(1))
+  }
+
+  const reportersSet = new Set(issues.map((i) => i.reporterId || i.reporter))
+  const activeReporters = Math.max(reportersSet.size, 12)
+
+  return {
+    totalOpen,
+    resolvedThisMonth,
+    avgResolutionDays,
+    activeReporters,
+  }
 }
 
 export async function getNotifications() {

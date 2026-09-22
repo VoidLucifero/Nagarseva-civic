@@ -4,7 +4,7 @@ import { SiteFooter } from '@/components/site-footer'
 import { ReportForm } from '@/components/report/report-form'
 
 export const metadata: Metadata = {
-  title: 'Report an Issue — CivicFix',
+  title: 'Report an Issue — NagarSeva',
   description: 'Report a civic issue in 10 seconds with a photo and your location.',
 }
 

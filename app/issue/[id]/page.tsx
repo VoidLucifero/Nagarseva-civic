@@ -24,7 +24,7 @@ export async function generateMetadata({
   const { id } = await params
   const issue = await getIssue(id)
   return {
-    title: issue ? `${issue.title} — CivicFix` : 'Issue not found — CivicFix',
+    title: issue ? `${issue.title} — NagarSeva` : 'Issue not found — NagarSeva',
   }
 }
 

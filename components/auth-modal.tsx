@@ -140,7 +140,7 @@ export function AuthModal({
             {mode === 'signup' ? <UserPlus className="size-6" /> : <LogIn className="size-6" />}
           </div>
           <h2 className="mt-3 text-xl font-bold text-foreground">
-            {mode === 'signup' ? 'Create CivicFix Account' : 'Welcome Back'}
+            {mode === 'signup' ? 'Create NagarSeva Account' : 'Welcome Back'}
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
             {mode === 'signup'

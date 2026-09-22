@@ -15,6 +15,7 @@ import type { UserRecord } from '@/lib/db'
 const NAV = [
   { href: '/public-complaint-feed', label: 'Complaint Feed' },
   { href: '/explore', label: 'Explore Map' },
+  { href: '/leaderboard', label: 'Leaderboard' },
   { href: '/official-dashboard', label: 'Official Dashboard' },
   { href: '/profile', label: 'My Profile' },
 ]
@@ -70,7 +71,7 @@ export function SiteHeader() {
               <span className="text-lg font-extrabold tracking-tight leading-none">
                 Nagar<span className="text-primary">Seva</span>
               </span>
-              <span className="text-[10px] text-muted-foreground font-semibold">CivicFix Platform</span>
+              <span className="text-[10px] text-muted-foreground font-semibold">Powered by CivicFix</span>
             </div>
           </Link>
 

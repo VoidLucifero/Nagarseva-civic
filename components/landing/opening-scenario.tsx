@@ -175,9 +175,9 @@ export function OpeningScenario() {
               <img
                 src={
                   activeStep === 0
-                    ? 'https://img.rocket.new/generatedImages/rocket_gen_img_137cf33fd-1778244287060.png'
+                    ? '/issues/water-leak.png'
                     : activeStep === 1
-                    ? 'https://img.rocket.new/generatedImages/rocket_gen_img_13a78aac2-1767581330656.png'
+                    ? '/issues/trash.png'
                     : activeStep === 2
                     ? '/issues/pothole.png'
                     : '/issues/pothole-fixed.png'

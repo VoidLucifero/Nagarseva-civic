@@ -13,37 +13,57 @@ export function StatCounter({
   duration?: number
   className?: string
 }) {
-  const [display, setDisplay] = useState(0)
+  const [display, setDisplay] = useState(value)
   const ref = useRef<HTMLSpanElement>(null)
-  const started = useRef(false)
+  const prevValue = useRef(value)
+
+  useEffect(() => {
+    // If value updates from async fetch, update display state directly
+    if (prevValue.current !== value) {
+      prevValue.current = value
+      setDisplay(value)
+    }
+  }, [value])
 
   useEffect(() => {
     const node = ref.current
     if (!node) return
 
+    let animationFrameId: number
+
     const run = () => {
-      if (started.current) return
-      started.current = true
       const start = performance.now()
+      const startVal = 0
+      const targetVal = value
+
       const tick = (now: number) => {
         const t = Math.min(1, (now - start) / duration)
         const eased = 1 - Math.pow(1 - t, 3)
-        setDisplay(value * eased)
-        if (t < 1) requestAnimationFrame(tick)
-        else setDisplay(value)
+        setDisplay(startVal + (targetVal - startVal) * eased)
+        if (t < 1) {
+          animationFrameId = requestAnimationFrame(tick)
+        } else {
+          setDisplay(targetVal)
+        }
       }
-      requestAnimationFrame(tick)
+      animationFrameId = requestAnimationFrame(tick)
     }
 
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries.some((e) => e.isIntersecting)) run()
+        if (entries.some((e) => e.isIntersecting)) {
+          run()
+        }
       },
-      { threshold: 0.4 },
+      { threshold: 0.1 },
     )
     observer.observe(node)
-    return () => observer.disconnect()
-  }, [value, duration])
+
+    return () => {
+      observer.disconnect()
+      if (animationFrameId) cancelAnimationFrame(animationFrameId)
+    }
+  }, [duration, value])
 
   return (
     <span ref={ref} className={className}>

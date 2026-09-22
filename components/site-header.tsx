@@ -262,7 +262,7 @@ export function SiteHeader() {
                     active ? 'bg-secondary text-foreground' : 'text-muted-foreground',
                   )}
                 >
-                  {item.href === '/admin' && <ShieldCheck className="size-4" />}
+                  {item.href === '/official-dashboard' && <ShieldCheck className="size-4" />}
                   {item.label}
                 </Link>
               )

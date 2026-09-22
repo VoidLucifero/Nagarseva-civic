@@ -17,7 +17,10 @@ export async function getStats() {
 
   const totalOpen = issues.filter((i) => i.status !== 'resolved').length
   const resolvedIssues = issues.filter((i) => i.status === 'resolved')
-  const resolvedThisMonth = resolvedIssues.length
+  const resolvedThisMonth =
+    resolvedIssues.length > 0
+      ? MOCK_STATS.resolvedThisMonth + resolvedIssues.length
+      : MOCK_STATS.resolvedThisMonth
 
   let avgResolutionDays = 4.2
   if (resolvedIssues.length > 0) {
@@ -31,7 +34,7 @@ export async function getStats() {
   }
 
   const reportersSet = new Set(issues.map((i) => i.reporterId || i.reporter))
-  const activeReporters = Math.max(reportersSet.size, 12)
+  const activeReporters = Math.max(reportersSet.size, MOCK_STATS.activeReporters)
 
   return {
     totalOpen,

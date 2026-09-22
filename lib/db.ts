@@ -237,6 +237,8 @@ export async function createIssue(
     department: 'Public Works',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),
+    lat: typeof newIssueData.lat === 'number' && !isNaN(newIssueData.lat) ? newIssueData.lat : 19.0760,
+    lng: typeof newIssueData.lng === 'number' && !isNaN(newIssueData.lng) ? newIssueData.lng : 72.8777,
     mapX: 45 + Math.floor(Math.random() * 10),
     mapY: 45 + Math.floor(Math.random() * 10),
     timeline: [

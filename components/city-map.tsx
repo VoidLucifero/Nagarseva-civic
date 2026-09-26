@@ -4,9 +4,10 @@ import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { onSnapshot, collection } from 'firebase/firestore'
+import { MapPin } from 'lucide-react'
 import { db } from '@/lib/firebase'
 import { cn } from '@/lib/utils'
-import type { Issue, IssuePhase, IssueStatus } from '@/lib/types'
+import type { Issue, IssueStatus } from '@/lib/types'
 import { SafeImage } from '@/components/safe-image'
 
 // Import Leaflet CSS dynamically
@@ -36,34 +37,40 @@ const PIN_HEX: Record<IssueStatus, string> = {
   resolved: '#10b981',
 }
 
-const useMapHelper = dynamic(
-  () => import('react-leaflet').then((m) => m.useMap),
-  { ssr: false }
-)
+const MapBoundsController = dynamic(
+  () =>
+    import('react-leaflet').then((m) => {
+      const { useMap } = m
+      return function BoundsController({ issues, L }: { issues: Issue[]; L: any }) {
+        const map = useMap()
+        useEffect(() => {
+          if (!map || !L || !issues || issues.length === 0) return
+          try {
+            const points = issues
+              .map((i) => {
+                const lat = typeof i.lat === 'number' && !isNaN(i.lat) ? i.lat : null
+                const lng = typeof i.lng === 'number' && !isNaN(i.lng) ? i.lng : null
+                return lat !== null && lng !== null ? ([lat, lng] as [number, number]) : null
+              })
+              .filter((p): p is [number, number] => p !== null)
 
-function MapBoundsController({ issues, L }: { issues: Issue[]; L: any }) {
-  try {
-    const map = useMapHelper()
-    useEffect(() => {
-      if (!map || !L || !issues || issues.length === 0) return
-      const points = issues
-        .map((i) => {
-          const lat = typeof i.lat === 'number' && !isNaN(i.lat) ? i.lat : null
-          const lng = typeof i.lng === 'number' && !isNaN(i.lng) ? i.lng : null
-          return lat && lng ? ([lat, lng] as [number, number]) : null
-        })
-        .filter((p): p is [number, number] => p !== null)
-
-      if (points.length === 1) {
-        map.setView(points[0], 13)
-      } else if (points.length > 1) {
-        const bounds = L.latLngBounds(points)
-        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 })
+            if (points.length === 1) {
+              map.setView(points[0], 13)
+            } else if (points.length > 1) {
+              const bounds = L.latLngBounds(points)
+              if (bounds && typeof bounds.isValid === 'function' && bounds.isValid()) {
+                map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 })
+              }
+            }
+          } catch (err) {
+            console.warn('Map fitBounds warning:', err)
+          }
+        }, [issues, map, L])
+        return null
       }
-    }, [issues, map, L])
-  } catch {}
-  return null
-}
+    }),
+  { ssr: false },
+)
 
 export function CityMap({
   issues: initialIssues,
@@ -88,11 +95,12 @@ export function CityMap({
       setL(leafletObj.default || leafletObj)
     })
 
-    // Real-time Firestore subscription to issues collection
     const unsubscribe = onSnapshot(
       collection(db, 'issues'),
       (snapshot) => {
-        if (!snapshot.empty) {
+        if (snapshot.empty) {
+          setLiveIssues([])
+        } else {
           const docs = snapshot.docs.map((d) => d.data() as Issue)
           setLiveIssues(docs)
         }
@@ -106,41 +114,44 @@ export function CityMap({
   }, [])
 
   useEffect(() => {
-    if (initialIssues && initialIssues.length > 0 && liveIssues.length === 0) {
+    if (initialIssues) {
       setLiveIssues(initialIssues)
     }
   }, [initialIssues])
 
-  // Compute map center & bounds dynamically based on valid issue coordinates across India
   const validCoordinates = useMemo(() => {
     return liveIssues
       .map((i) => ({
-        lat: typeof i.lat === 'number' && !isNaN(i.lat) ? i.lat : 19.0760,
-        lng: typeof i.lng === 'number' && !isNaN(i.lng) ? i.lng : 72.8777,
+        lat: typeof i.lat === 'number' && !isNaN(i.lat) ? i.lat : null,
+        lng: typeof i.lng === 'number' && !isNaN(i.lng) ? i.lng : null,
       }))
-      .filter((c) => c.lat !== 0 && c.lng !== 0)
+      .filter((c): c is { lat: number; lng: number } => c.lat !== null && c.lng !== null)
   }, [liveIssues])
 
-  // Center on average lat/lng or default to India center (20.5937, 78.9629)
-  const centerLat = validCoordinates.length > 0
-    ? validCoordinates.reduce((sum, c) => sum + c.lat, 0) / validCoordinates.length
-    : 20.5937
-  const centerLng = validCoordinates.length > 0
-    ? validCoordinates.reduce((sum, c) => sum + c.lng, 0) / validCoordinates.length
-    : 78.9629
+  const centerLat =
+    validCoordinates.length > 0
+      ? validCoordinates.reduce((sum, c) => sum + c.lat, 0) / validCoordinates.length
+      : 20.5937
+  const centerLng =
+    validCoordinates.length > 0
+      ? validCoordinates.reduce((sum, c) => sum + c.lng, 0) / validCoordinates.length
+      : 78.9629
 
-  // Zoom level 5 for nationwide spread, or 11 for single city
-  const defaultZoom = validCoordinates.length > 1 ? 5 : 11
+  const defaultZoom = validCoordinates.length > 1 ? 5 : validCoordinates.length === 1 ? 13 : 5
 
   if (!isMounted || !L) {
     return (
-      <div className={cn('flex items-center justify-center rounded-xl border border-border bg-card p-8 text-xs text-muted-foreground', className)}>
+      <div
+        className={cn(
+          'flex items-center justify-center rounded-xl border border-border bg-card p-8 text-xs text-muted-foreground',
+          className,
+        )}
+      >
         Loading Interactive OpenStreetMap…
       </div>
     )
   }
 
-  // Create custom Leaflet Marker Icons dynamically
   const createCustomIcon = (status: IssueStatus) => {
     const color = PIN_HEX[status] || '#eab308'
     const svgIcon = `
@@ -173,13 +184,14 @@ export function CityMap({
         />
 
         {liveIssues.map((issue) => {
-          const lat = typeof issue.lat === 'number' && !isNaN(issue.lat) ? issue.lat : 19.0760
-          const lng = typeof issue.lng === 'number' && !isNaN(issue.lng) ? issue.lng : 72.8777
+          if (typeof issue.lat !== 'number' || typeof issue.lng !== 'number' || isNaN(issue.lat) || isNaN(issue.lng)) {
+            return null
+          }
 
           return (
             <Marker
               key={issue.id}
-              position={[lat, lng]}
+              position={[issue.lat, issue.lng]}
               icon={createCustomIcon(issue.status)}
               eventHandlers={{
                 click: () => {
@@ -204,7 +216,7 @@ export function CityMap({
                     <h4 className="font-bold text-foreground text-xs line-clamp-1">{issue.title}</h4>
                     <p className="text-[11px] text-muted-foreground truncate">{issue.address}</p>
                     <p className="text-[10px] font-mono text-muted-foreground mt-0.5">
-                      GPS: {lat.toFixed(4)}, {lng.toFixed(4)}
+                      GPS: {issue.lat.toFixed(4)}, {issue.lng.toFixed(4)}
                     </p>
                   </div>
                   <div className="flex items-center justify-between border-t border-border pt-2 text-[10px]">
@@ -235,6 +247,24 @@ export function CityMap({
           )
         })}
       </MapContainer>
+
+      {liveIssues.length === 0 && (
+        <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-background/70 p-6 text-center backdrop-blur-xs">
+          <div className="flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary mb-3">
+            <MapPin className="size-6" />
+          </div>
+          <h3 className="font-bold text-foreground text-sm">No active reports yet</h3>
+          <p className="text-xs text-muted-foreground max-w-xs mt-1">
+            Be the first citizen to submit a local civic issue in your city!
+          </p>
+          <Link
+            href="/report"
+            className="mt-4 rounded-lg bg-primary px-4 py-2 text-xs font-bold text-primary-foreground hover:bg-primary/90 shadow-sm"
+          >
+            Report an Issue Now
+          </Link>
+        </div>
+      )}
     </div>
   )
 }

@@ -10,13 +10,18 @@ import { MOCK_ISSUES, MOCK_STATS } from '@/lib/mock-data'
 import { getIssues } from '@/lib/api'
 
 export function MapPreview() {
-  const [openCount, setOpenCount] = useState<number>(MOCK_STATS.totalOpen)
+  const [openCount, setOpenCount] = useState<number>(0)
+  const [issues, setIssues] = useState<any[]>([])
 
   useEffect(() => {
-    getIssues().then((issues) => {
-      if (issues && issues.length > 0) {
-        const count = issues.filter((i) => i.status !== 'resolved').length
-        setOpenCount(count > 0 ? count : issues.length)
+    getIssues().then((fetched) => {
+      if (fetched && fetched.length > 0) {
+        const count = fetched.filter((i) => i.status !== 'resolved').length
+        setOpenCount(count > 0 ? count : fetched.length)
+        setIssues(fetched)
+      } else {
+        setOpenCount(0)
+        setIssues([])
       }
     })
   }, [])
@@ -44,7 +49,7 @@ export function MapPreview() {
         </div>
 
         <div className="mt-8">
-          <CityMap issues={MOCK_ISSUES} className="h-[320px] w-full sm:h-[420px]" />
+          <CityMap issues={issues} className="h-[320px] w-full sm:h-[420px]" />
           <MapLegend className="mt-4" />
         </div>
       </div>

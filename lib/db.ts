@@ -5,7 +5,7 @@ import {
   getDocs,
   setDoc,
 } from 'firebase/firestore'
-import { firestore } from './firebase'
+import { firestore, auth } from './firebase'
 import { MOCK_ISSUES, MOCK_REPORTERS, CURRENT_USER } from './mock-data'
 import type { Issue } from './types'
 import { savePhoto } from './photos'

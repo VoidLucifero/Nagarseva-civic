@@ -1,12 +1,11 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import dynamic from 'next/dynamic'
 import { onSnapshot, collection } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { cn } from '@/lib/utils'
-import { phaseOf } from '@/lib/civic'
 import type { Issue, IssuePhase, IssueStatus } from '@/lib/types'
 import { SafeImage } from '@/components/safe-image'
 
@@ -29,12 +28,6 @@ const Popup = dynamic(
   () => import('react-leaflet').then((m) => m.Popup),
   { ssr: false },
 )
-
-const PIN_COLOR: Record<IssuePhase, string> = {
-  pending: 'bg-yellow-500',
-  progress: 'bg-amber-500',
-  resolved: 'bg-emerald-500',
-}
 
 const PIN_HEX: Record<IssueStatus, string> = {
   reported: '#eab308',
@@ -89,9 +82,26 @@ export function CityMap({
     }
   }, [initialIssues])
 
-  // Center map around Mumbai coordinates or first issue location
-  const centerLat = liveIssues[0]?.lat && !isNaN(liveIssues[0].lat) ? liveIssues[0].lat : 19.0760
-  const centerLng = liveIssues[0]?.lng && !isNaN(liveIssues[0].lng) ? liveIssues[0].lng : 72.8777
+  // Compute map center & bounds dynamically based on valid issue coordinates across India
+  const validCoordinates = useMemo(() => {
+    return liveIssues
+      .map((i) => ({
+        lat: typeof i.lat === 'number' && !isNaN(i.lat) ? i.lat : 19.0760,
+        lng: typeof i.lng === 'number' && !isNaN(i.lng) ? i.lng : 72.8777,
+      }))
+      .filter((c) => c.lat !== 0 && c.lng !== 0)
+  }, [liveIssues])
+
+  // Center on average lat/lng or default to India center (20.5937, 78.9629)
+  const centerLat = validCoordinates.length > 0
+    ? validCoordinates.reduce((sum, c) => sum + c.lat, 0) / validCoordinates.length
+    : 20.5937
+  const centerLng = validCoordinates.length > 0
+    ? validCoordinates.reduce((sum, c) => sum + c.lng, 0) / validCoordinates.length
+    : 78.9629
+
+  // Zoom level 5 for nationwide spread, or 11 for single city
+  const defaultZoom = validCoordinates.length > 1 ? 5 : 11
 
   if (!isMounted || !L) {
     return (
@@ -123,7 +133,7 @@ export function CityMap({
     <div className={cn('relative overflow-hidden rounded-xl border border-border shadow-sm z-0', className)}>
       <MapContainer
         center={[centerLat, centerLng]}
-        zoom={12}
+        zoom={defaultZoom}
         scrollWheelZoom={false}
         className="h-full w-full min-h-[350px]"
       >
@@ -163,6 +173,9 @@ export function CityMap({
                     </span>
                     <h4 className="font-bold text-foreground text-xs line-clamp-1">{issue.title}</h4>
                     <p className="text-[11px] text-muted-foreground truncate">{issue.address}</p>
+                    <p className="text-[10px] font-mono text-muted-foreground mt-0.5">
+                      GPS: {lat.toFixed(4)}, {lng.toFixed(4)}
+                    </p>
                   </div>
                   <div className="flex items-center justify-between border-t border-border pt-2 text-[10px]">
                     <span className="font-semibold text-foreground">Dept: {issue.department || 'Public Works'}</span>

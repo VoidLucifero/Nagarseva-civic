@@ -201,6 +201,53 @@ export async function loginOrRegisterUser(
   return newUser
 }
 
+export async function setOfficerRole(
+  phone: string,
+  isOfficial: boolean = true,
+  name?: string,
+): Promise<UserRecord> {
+  await ensureSeeded()
+  const cleanPhone = phone.trim().replace(/\D/g, '')
+
+  let user = await getUserByPhone(cleanPhone)
+  const role: 'citizen' | 'official' = isOfficial ? 'official' : 'citizen'
+
+  if (user) {
+    user.role = role
+    if (name?.trim()) {
+      user.name = name.trim()
+      user.initials = generateInitials(user.name)
+    }
+    if (isOfficial) {
+      user.tier = 'Gold'
+      user.points = Math.max(user.points, 5000)
+    }
+    await setDoc(doc(firestore, 'users', user.id), user, { merge: true }).catch((err) => {
+      console.warn('Failed to set officer role in Firestore:', err)
+    })
+    return user
+  }
+
+  const newUser: UserRecord = {
+    id: `user-officer-${Date.now()}`,
+    name: name?.trim() || 'Municipal Officer',
+    phone: cleanPhone,
+    initials: generateInitials(name?.trim() || 'Municipal Officer'),
+    tier: 'Gold',
+    points: 5000,
+    reports: 0,
+    resolved: 10,
+    role,
+  }
+
+  inMemoryUsers.push(newUser)
+  await setDoc(doc(firestore, 'users', newUser.id), newUser).catch((err) => {
+    console.warn('Failed to create officer in Firestore:', err)
+  })
+
+  return newUser
+}
+
 export async function getAllUsers(): Promise<UserRecord[]> {
   await ensureSeeded()
   try {

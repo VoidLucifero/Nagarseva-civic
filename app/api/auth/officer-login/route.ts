@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server'
-import { loginOrRegisterUser } from '@/lib/db'
+import { getUserByPhone, loginOrRegisterUser } from '@/lib/db'
 
 export async function POST(request: Request) {
   try {
@@ -25,15 +25,7 @@ export async function POST(request: Request) {
       )
     }
 
-    // Verify phone matches seeded officer account
-    if (cleanPhone !== '9999999999') {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized: Phone number is not registered to a Municipal Officer.' },
-        { status: 401 },
-      )
-    }
-
-    // Verify access code server-side ONLY (never passed or checked on client)
+    // 1. Check secret access code (server-side ONLY)
     if (!inputCode || inputCode !== expectedCode) {
       return NextResponse.json(
         { success: false, error: 'Invalid officer access code. Access denied.' },
@@ -41,7 +33,21 @@ export async function POST(request: Request) {
       )
     }
 
-    const user = await loginOrRegisterUser('Municipal Officer', cleanPhone, 'official')
+    // 2. Lookup existing user record in database
+    const existingUser = await getUserByPhone(cleanPhone)
+
+    // Authorized if demo account (9999999999) OR if user record has role === 'official'
+    const isAuthorizedOfficer = cleanPhone === '9999999999' || existingUser?.role === 'official'
+
+    if (!isAuthorizedOfficer) {
+      return NextResponse.json(
+        { success: false, error: 'Unauthorized: Phone number is not registered to an authorized Municipal Officer.' },
+        { status: 401 },
+      )
+    }
+
+    const officialName = existingUser?.name || (cleanPhone === '9999999999' ? 'Municipal Officer' : 'Officer')
+    const user = await loginOrRegisterUser(officialName, cleanPhone, 'official')
 
     const response = NextResponse.json({ success: true, user })
     response.cookies.set('civic_user', JSON.stringify(user), {

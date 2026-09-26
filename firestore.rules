@@ -40,8 +40,11 @@ service cloud.firestore {
          request.resource.data.role == 'citizen' ||
          (resource.data.role != null && request.resource.data.role == resource.data.role));
 
-      // Direct client deletion of user documents is blocked
-      allow delete: if false;
+      // Allow user document deletion by document owner or municipal official
+      allow delete: if request.auth != null && (
+        request.auth.uid == userId ||
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'official'
+      );
     }
   }
 }

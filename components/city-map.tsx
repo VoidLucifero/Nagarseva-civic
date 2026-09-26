@@ -36,6 +36,35 @@ const PIN_HEX: Record<IssueStatus, string> = {
   resolved: '#10b981',
 }
 
+const useMapHelper = dynamic(
+  () => import('react-leaflet').then((m) => m.useMap),
+  { ssr: false }
+)
+
+function MapBoundsController({ issues, L }: { issues: Issue[]; L: any }) {
+  try {
+    const map = useMapHelper()
+    useEffect(() => {
+      if (!map || !L || !issues || issues.length === 0) return
+      const points = issues
+        .map((i) => {
+          const lat = typeof i.lat === 'number' && !isNaN(i.lat) ? i.lat : null
+          const lng = typeof i.lng === 'number' && !isNaN(i.lng) ? i.lng : null
+          return lat && lng ? ([lat, lng] as [number, number]) : null
+        })
+        .filter((p): p is [number, number] => p !== null)
+
+      if (points.length === 1) {
+        map.setView(points[0], 13)
+      } else if (points.length > 1) {
+        const bounds = L.latLngBounds(points)
+        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 14 })
+      }
+    }, [issues, map, L])
+  } catch {}
+  return null
+}
+
 export function CityMap({
   issues: initialIssues,
   selectedId,
@@ -137,6 +166,7 @@ export function CityMap({
         scrollWheelZoom={false}
         className="h-full w-full min-h-[350px]"
       >
+        <MapBoundsController issues={liveIssues} L={L} />
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
           url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"

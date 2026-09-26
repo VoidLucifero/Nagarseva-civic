@@ -29,13 +29,12 @@ service cloud.firestore {
       // Anyone can read user documents (public profiles, leaderboard)
       allow read: if true;
 
-      // Users can ONLY create/update their OWN user document (request.auth.uid == userId)
-      // On CREATE: 'role' can either be omitted or must be explicitly 'citizen' (NEVER 'official')
-      allow create: if request.auth != null && request.auth.uid == userId &&
+      // Authenticated users can create user documents ONLY IF role is omitted or explicitly set to 'citizen' (NEVER 'official')
+      allow create: if request.auth != null &&
         (!('role' in request.resource.data.keys()) || request.resource.data.role == 'citizen');
 
-      // On UPDATE: 'role' can either be omitted/untouched OR explicitly set to 'citizen' OR remain unchanged
-      allow update: if request.auth != null && request.auth.uid == userId &&
+      // Authenticated users can update user documents ONLY IF role is omitted/untouched OR explicitly set to 'citizen' OR remains unchanged
+      allow update: if request.auth != null &&
         (!('role' in request.resource.data.diff(resource.data).affectedKeys()) ||
          request.resource.data.role == 'citizen' ||
          (resource.data.role != null && request.resource.data.role == resource.data.role));

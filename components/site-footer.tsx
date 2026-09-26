@@ -24,9 +24,6 @@ export function SiteFooter() {
           <Link href="/leaderboard" className="hover:text-foreground">
             Leaderboard
           </Link>
-          <Link href="/official-dashboard" className="hover:text-foreground">
-            Official Dashboard
-          </Link>
           <Link href="/profile" className="hover:text-foreground">
             My Profile
           </Link>

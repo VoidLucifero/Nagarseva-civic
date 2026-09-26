@@ -79,7 +79,7 @@ export function SiteHeader() {
           </Link>
 
           <nav className="hidden items-center gap-1 md:flex">
-            {NAV.map((item) => {
+            {NAV.filter((item) => item.href !== '/official-dashboard' || user?.role === 'official').map((item) => {
               const active = pathname === item.href || pathname.startsWith(item.href + '/')
               return (
                 <Link
@@ -253,7 +253,7 @@ export function SiteHeader() {
               )}
             </div>
 
-            {NAV.map((item) => {
+            {NAV.filter((item) => item.href !== '/official-dashboard' || user?.role === 'official').map((item) => {
               const active = pathname === item.href || pathname.startsWith(item.href + '/')
               return (
                 <Link

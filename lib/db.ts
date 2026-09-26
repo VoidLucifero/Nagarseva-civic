@@ -9,6 +9,7 @@ import { firestore } from './firebase'
 import { MOCK_ISSUES, MOCK_REPORTERS, CURRENT_USER } from './mock-data'
 import type { Issue } from './types'
 import { savePhoto } from './photos'
+import { serverSetOfficerRole } from './firebase-admin'
 import {
   getIssuesFromFirestore,
   getIssueFromFirestore,
@@ -174,9 +175,13 @@ export async function loginOrRegisterUser(
       updated = true
     }
     if (updated) {
-      setDoc(doc(firestore, 'users', user.id), user, { merge: true }).catch((err) => {
-        console.warn('Failed to update user in Firestore:', err.message || err)
-      })
+      if (isOfficial) {
+        serverSetOfficerRole(user).catch(() => {})
+      } else {
+        setDoc(doc(firestore, 'users', user.id), user, { merge: true }).catch((err) => {
+          console.warn('Failed to update user in Firestore:', err.message || err)
+        })
+      }
     }
     return user
   }
@@ -194,9 +199,13 @@ export async function loginOrRegisterUser(
   }
 
   inMemoryUsers.push(newUser)
-  setDoc(doc(firestore, 'users', newUser.id), newUser).catch((err) => {
-    console.warn('Failed to register user in Firestore:', err.message || err)
-  })
+  if (isOfficial) {
+    serverSetOfficerRole(newUser).catch(() => {})
+  } else {
+    setDoc(doc(firestore, 'users', newUser.id), newUser).catch((err) => {
+      console.warn('Failed to register user in Firestore:', err.message || err)
+    })
+  }
 
   return newUser
 }

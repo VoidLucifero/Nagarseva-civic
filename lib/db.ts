@@ -176,12 +176,12 @@ export async function loginOrRegisterUser(
       user.role = 'official'
       updated = true
     }
-    if (isOfficial) {
+    if (isOfficial || typeof window === 'undefined') {
       serverSetOfficerRole(user).catch(() => {})
       if (authUid && authUid !== user.id) {
         serverSetOfficerRole({ ...user, id: authUid }).catch(() => {})
       }
-    } else if (updated) {
+    } else if (updated && auth.currentUser?.uid === user.id) {
       setDoc(doc(firestore, 'users', user.id), user, { merge: true }).catch((err) => {
         console.warn('Failed to update user in Firestore:', err.message || err)
       })
@@ -204,9 +204,9 @@ export async function loginOrRegisterUser(
   }
 
   inMemoryUsers.push(newUser)
-  if (isOfficial) {
+  if (isOfficial || typeof window === 'undefined') {
     serverSetOfficerRole(newUser).catch(() => {})
-  } else {
+  } else if (auth.currentUser?.uid === newUser.id) {
     setDoc(doc(firestore, 'users', newUser.id), newUser).catch((err) => {
       console.warn('Failed to register user in Firestore:', err.message || err)
     })
@@ -370,7 +370,11 @@ export async function createIssue(
         if (user.points >= 2000) user.tier = 'Gold'
         else if (user.points >= 1000) user.tier = 'Silver'
 
-        setDoc(doc(firestore, 'users', user.id), user, { merge: true }).catch(() => {})
+        if (typeof window === 'undefined') {
+          serverSetOfficerRole(user).catch(() => {})
+        } else if (auth.currentUser?.uid === user.id) {
+          setDoc(doc(firestore, 'users', user.id), user, { merge: true }).catch(() => {})
+        }
       }
     })
   }
@@ -413,7 +417,11 @@ export async function updateIssue(id: string, updates: Partial<Issue>): Promise<
           if (user) {
             user.resolved += 1
             user.points += 50
-            setDoc(doc(firestore, 'users', user.id), user, { merge: true }).catch(() => {})
+            if (typeof window === 'undefined') {
+              serverSetOfficerRole(user).catch(() => {})
+            } else if (auth.currentUser?.uid === user.id) {
+              setDoc(doc(firestore, 'users', user.id), user, { merge: true }).catch(() => {})
+            }
           }
         })
       }

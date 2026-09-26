@@ -142,9 +142,20 @@ const MOCK_LEADERBOARD_USERS: LeaderboardUser[] = [
   },
 ]
 
+function deriveUserTitles(user: UserRecord): string[] {
+  const titles: string[] = []
+  if (user.points >= 1000) titles.push('Civic Hero 🎖️')
+  if (user.reports >= 5) titles.push('Pothole Patrol Master 🛣️')
+  if (user.role === 'official') titles.push('City Guardian 🛡️')
+  if (user.resolved >= 5) titles.push('Sanitation Champion 🗑️')
+  if (titles.length === 0) titles.push('Active Citizen 🌱')
+  return titles
+}
+
 export default function LeaderboardPage() {
   const [currentUser, setCurrentUser] = useState<UserRecord | null>(null)
   const [userIssues, setUserIssues] = useState<Issue[]>([])
+  const [leaderboardUsers, setLeaderboardUsers] = useState<LeaderboardUser[]>(MOCK_LEADERBOARD_USERS)
 
   useEffect(() => {
     fetch('/api/auth/me')
@@ -159,6 +170,25 @@ export default function LeaderboardPage() {
       .then((data) => {
         if (Array.isArray(data)) setUserIssues(data)
         else if (data?.issues) setUserIssues(data.issues)
+      })
+      .catch(() => {})
+
+    fetch('/api/leaderboard')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.success && Array.isArray(data.users) && data.users.length > 0) {
+          const mapped: LeaderboardUser[] = data.users.map((u: UserRecord) => ({
+            id: u.id,
+            name: u.name || 'Citizen',
+            initials: u.initials || (u.name ? u.name.slice(0, 2).toUpperCase() : 'CZ'),
+            points: u.points || 0,
+            tier: u.tier || 'Bronze',
+            reports: u.reports || 0,
+            resolved: u.resolved || 0,
+            titles: deriveUserTitles(u),
+          }))
+          setLeaderboardUsers(mapped)
+        }
       })
       .catch(() => {})
   }, [])
@@ -271,7 +301,7 @@ export default function LeaderboardPage() {
 
           <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
             <div className="divide-y divide-border">
-              {MOCK_LEADERBOARD_USERS.map((reporter, idx) => {
+              {leaderboardUsers.map((reporter, idx) => {
                 const rank = idx + 1
                 const isTop3 = rank <= 3
 

@@ -181,7 +181,42 @@ export function ReportForm() {
     }
   }
 
-  function capturePhotoFromCamera() {
+  function compressImageDataUrl(dataUrl: string, maxDim = 1024, quality = 0.75): Promise<string> {
+    return new Promise((resolve) => {
+      if (!dataUrl.startsWith('data:image')) {
+        resolve(dataUrl)
+        return
+      }
+      const img = new window.Image()
+      img.onload = () => {
+        let width = img.width
+        let height = img.height
+        if (width > maxDim || height > maxDim) {
+          if (width > height) {
+            height = Math.round((height * maxDim) / width)
+            width = maxDim
+          } else {
+            width = Math.round((width * maxDim) / height)
+            height = maxDim
+          }
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width = width
+        canvas.height = height
+        const ctx = canvas.getContext('2d')
+        if (ctx) {
+          ctx.drawImage(img, 0, 0, width, height)
+          resolve(canvas.toDataURL('image/jpeg', quality))
+        } else {
+          resolve(dataUrl)
+        }
+      }
+      img.onerror = () => resolve(dataUrl)
+      img.src = dataUrl
+    })
+  }
+
+  async function capturePhotoFromCamera() {
     if (!videoRef.current) return
     const video = videoRef.current
     const canvas = document.createElement('canvas')
@@ -190,10 +225,11 @@ export function ReportForm() {
     const ctx = canvas.getContext('2d')
     if (ctx) {
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
-      const dataUrl = canvas.toDataURL('image/jpeg', 0.9)
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.8)
       stopCameraStream()
       setShowLiveCamera(false)
-      setPhotoPreview(dataUrl)
+      const compressed = await compressImageDataUrl(dataUrl)
+      setPhotoPreview(compressed)
       runAnalysis()
     }
   }
@@ -203,10 +239,11 @@ export function ReportForm() {
     if (!file) return
 
     const reader = new FileReader()
-    reader.onload = (event) => {
+    reader.onload = async (event) => {
       const dataUrl = event.target?.result as string
       if (dataUrl) {
-        setPhotoPreview(dataUrl)
+        const compressed = await compressImageDataUrl(dataUrl)
+        setPhotoPreview(compressed)
         runAnalysis()
       }
     }

@@ -28,14 +28,12 @@ const SEVERITY_WEIGHT: Record<Severity, number> = {
   High: 50,
 }
 
-const NOW = new Date('2026-08-13T12:00:00Z').getTime()
-
 export function daysSince(iso: string): number {
-  return Math.max(0, Math.floor((NOW - new Date(iso).getTime()) / 86_400_000))
+  return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000))
 }
 
 export function hoursSince(iso: string): number {
-  return Math.max(0, Math.floor((NOW - new Date(iso).getTime()) / 3_600_000))
+  return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / 3_600_000))
 }
 
 /**
@@ -70,7 +68,7 @@ export function slaState(issue: Issue): SlaState {
 }
 
 export function formatRelative(iso: string): string {
-  const diff = NOW - new Date(iso).getTime()
+  const diff = Date.now() - new Date(iso).getTime()
   const mins = Math.floor(diff / 60_000)
   if (mins < 1) return 'just now'
   if (mins < 60) return `${mins}m ago`

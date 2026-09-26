@@ -153,75 +153,25 @@ export async function analyzePhoto(): Promise<{
 
 /** Submit report to persistent server database and browser localStorage. */
 export async function submitReport(payload: any): Promise<{ id: string }> {
-  let createdId: string | null = null
-  let serverIssue: Issue | null = null
-
-  try {
-    const res = await fetch('/api/reports', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    })
-    const data = await res.json()
-    if (res.ok && data?.id) {
-      createdId = data.id
-      serverIssue = data.issue
-    }
-  } catch (err) {
-    console.error('Failed to submit report to server:', err)
+  const res = await fetch('/api/reports', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  })
+  const data = await res.json()
+  if (!res.ok || !data?.id || !data?.success) {
+    throw new Error(data?.error || 'Failed to submit report to municipal database.')
   }
 
-  const finalId = createdId || `CF-${Math.floor(1100 + Math.random() * 800)}`
+  const createdId = data.id
+  const serverIssue: Issue = data.issue
 
-  const userDesc = (payload.description || '').trim()
-  const customTitle =
-    userDesc.length > 5
-      ? userDesc.length > 45
-        ? `${userDesc.slice(0, 45)}...`
-        : userDesc
-      : `${payload.category || 'Pothole'} reported`
+  const fullIssue: Issue = {
+    ...serverIssue,
+    photo: payload.photo || serverIssue.photo || '/issues/pothole.png',
+  }
 
-  const fullIssue: Issue = serverIssue
-    ? {
-        ...serverIssue,
-        // Preserve original Base64 photo in browser client storage
-        photo: payload.photo || serverIssue.photo || '/issues/pothole.png',
-      }
-    : {
-        id: finalId,
-        title: customTitle,
-        category: payload.category || 'Pothole',
-        status: 'reported',
-        severity: payload.severity || 'Medium',
-        address: payload.address || 'Near current location',
-        ward: 'Ward 4',
-        distanceKm: 0.2,
-        description: userDesc || 'Reported by citizen',
-        photo: payload.photo || '/issues/pothole.png',
-        afterPhoto: null,
-        confirmations: 1,
-        upvotes: 1,
-        aiConfidence: 94,
-        reporter: payload.reporter || 'Citizen',
-        reporterId: 'u-citizen',
-        department: 'Public Works',
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-        mapX: 45 + Math.floor(Math.random() * 10),
-        mapY: 45 + Math.floor(Math.random() * 10),
-        timeline: [
-          {
-            stage: 'reported',
-            label: 'Reported',
-            at: new Date().toISOString(),
-            note: 'Submitted with photo + GPS',
-          },
-        ],
-        comments: [],
-      }
-
-  // Save to client localStorage permanently so complaints never disappear on browser reopen!
   saveClientIssue(fullIssue)
 
-  return { id: finalId }
+  return { id: createdId }
 }

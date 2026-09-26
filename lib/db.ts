@@ -156,6 +156,7 @@ export async function loginOrRegisterUser(
   name: string,
   phone: string,
   requestedRole?: 'citizen' | 'official',
+  authUid?: string,
 ): Promise<UserRecord> {
   await ensureSeeded()
   const cleanPhone = phone.trim().replace(/\D/g, '')
@@ -186,8 +187,10 @@ export async function loginOrRegisterUser(
     return user
   }
 
+  const effectiveId = authUid || auth.currentUser?.uid || `user-${Date.now()}`
+
   const newUser: UserRecord = {
-    id: `user-${Date.now()}`,
+    id: effectiveId,
     name: name.trim() || (isOfficial ? 'Municipal Officer' : 'Citizen'),
     phone: cleanPhone,
     initials: generateInitials(name.trim() || (isOfficial ? 'Municipal Officer' : 'Citizen')),
@@ -321,7 +324,7 @@ export async function createIssue(
     upvotes: 1,
     aiConfidence: 94,
     reporter: newIssueData.reporter || 'Citizen',
-    reporterId: newIssueData.reporterId || CURRENT_USER.id,
+    reporterId: newIssueData.reporterId || auth.currentUser?.uid || CURRENT_USER.id,
     department: 'Public Works',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),

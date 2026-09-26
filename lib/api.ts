@@ -59,11 +59,7 @@ export async function getIssues(): Promise<Issue[]> {
         serverIssues = data.issues
       }
     }
-  } catch {
-    serverIssues = MOCK_ISSUES
-  }
-
-  if (serverIssues.length === 0) serverIssues = MOCK_ISSUES
+  } catch {}
 
   if (typeof window !== 'undefined') {
     return mergeClientIssues(serverIssues)

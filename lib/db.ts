@@ -89,28 +89,15 @@ async function ensureSeeded() {
   if (isSeeded) return
   isSeeded = true
 
-  // Seed mock photos into photos store
-  MOCK_ISSUES.forEach((iss) => {
-    if (iss.photo) {
-      savePhoto(iss.id, iss.photo, iss.category)
-    }
-  })
-
   try {
     const usersSnap = await withTimeout(getDocs(collection(firestore, 'users')), 2000, null)
     if (usersSnap && !usersSnap.empty) {
       inMemoryUsers = usersSnap.docs.map((d) => d.data() as UserRecord)
     } else {
-      const initialUsers = getInitialUsers()
-      inMemoryUsers = initialUsers
-      if (usersSnap) {
-        for (const u of initialUsers) {
-          setDoc(doc(firestore, 'users', u.id), u).catch(() => {})
-        }
-      }
+      inMemoryUsers = []
     }
   } catch (err) {
-    if (inMemoryUsers.length === 0) inMemoryUsers = getInitialUsers()
+    inMemoryUsers = []
   }
 }
 

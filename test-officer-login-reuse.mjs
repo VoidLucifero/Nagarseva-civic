@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app'
-import { getFirestore, collection, getDocs, doc, setDoc } from 'firebase/firestore'
+import { getFirestore } from 'firebase/firestore'
 import { getAuth, signInAnonymously } from 'firebase/auth'
 import { getUserByPhone, loginOrRegisterUser } from './lib/db.ts'
 
@@ -14,14 +14,13 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig)
 const auth = getAuth(app)
-const db = getFirestore(app)
 
 async function testOfficerLoginReuse() {
   console.log('=== OFFICER LOGIN REUSE & UNIFIED ID VERIFICATION TEST ===\n')
 
   const cred = await signInAnonymously(auth)
   const authUid = cred.user.uid
-  console.log(`Authenticated with Firebase Auth session. Auth UID: "${authUid}"`)
+  console.log(`Authenticated with Firebase Auth session. Raw Auth UID: "${authUid}"`)
 
   // 1. Verify lookup of existing Officer Rajesh Sharma (phone: 9876543210)
   console.log('\n[TEST 1] Logging in existing Officer Rajesh Sharma (phone: 9876543210)...')
@@ -37,23 +36,24 @@ async function testOfficerLoginReuse() {
     console.error(`❌ Mismatch: Expected user-officer-9876543210 but got ${loggedInOfficer.id}`)
   }
 
-  // 2. Verify registration of a brand new officer with a new phone number
+  // 2. Verify registration of a brand new officer with a new phone number and raw Firebase Auth UID
   console.log('\n[TEST 2] Registering brand new Officer with new phone number (phone: 9111122222)...')
-  const newOfficerAuthUid = `officer-auth-${Date.now()}`
-  const newOfficer = await loginOrRegisterUser('Officer Priya Verma', '9111122222', 'official', newOfficerAuthUid)
+  const rawAuthUid = authUid // Use exact raw Firebase Auth UID from auth.currentUser.uid
+  console.log(`Using raw Firebase Auth UID for new officer registration: "${rawAuthUid}"`)
+
+  const newOfficer = await loginOrRegisterUser('Officer Priya Verma', '9111122222', 'official', rawAuthUid)
   console.log(`New officer registered document ID: "${newOfficer.id}"`)
 
-  if (newOfficer.id === newOfficerAuthUid) {
-    console.log('✅ CONFIRMED: Brand new officer follows the unified-ID scheme using the Auth UID!')
+  if (newOfficer.id === rawAuthUid) {
+    console.log(`✅ CONFIRMED: Brand new officer document ID ("${newOfficer.id}") EQUALS raw Firebase Auth UID ("${rawAuthUid}") EXACTLY — with no prefixes or custom formats!`)
+  } else {
+    console.error(`❌ Mismatch: Expected document ID "${rawAuthUid}" but got "${newOfficer.id}"`)
   }
 
-  // Clean up test new officer
-  await setDoc(doc(db, 'users', newOfficerAuthUid), { name: 'Clean' }).catch(() => {})
-
   console.log('\n====================================================')
-  console.log('FIRESTORE USERS REUSE VERIFICATION COMPLETE')
+  console.log('FIRESTORE USERS REUSE & UNIFIED ID VERIFICATION COMPLETE')
   console.log('====================================================')
   process.exit(0)
 }
 
-testOfficerLoginReuse()
+testOfficerLoginReuse().catch(console.error)

@@ -218,11 +218,12 @@ export async function setOfficerRole(
   phone: string,
   isOfficial: boolean = true,
   name?: string,
+  authUid?: string,
 ): Promise<UserRecord> {
   await ensureSeeded()
   const cleanPhone = phone.trim().replace(/\D/g, '')
 
-  let user = await getUserByPhone(cleanPhone)
+  let user = await getUserByPhone(cleanPhone, isOfficial ? 'official' : 'citizen')
   const role: 'citizen' | 'official' = isOfficial ? 'official' : 'citizen'
 
   if (user) {
@@ -241,8 +242,10 @@ export async function setOfficerRole(
     return user
   }
 
+  const effectiveId = authUid || auth.currentUser?.uid || cleanPhone
+
   const newUser: UserRecord = {
-    id: `user-officer-${Date.now()}`,
+    id: effectiveId,
     name: name?.trim() || 'Municipal Officer',
     phone: cleanPhone,
     initials: generateInitials(name?.trim() || 'Municipal Officer'),

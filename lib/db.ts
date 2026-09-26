@@ -109,21 +109,35 @@ function generateInitials(name: string): string {
   return name.slice(0, 2).toUpperCase()
 }
 
-export async function getUserByPhone(phone: string): Promise<UserRecord | null> {
+export async function getUserByPhone(phone: string, requestedRole?: 'citizen' | 'official'): Promise<UserRecord | null> {
   await ensureSeeded()
   const cleanPhone = phone.trim().replace(/\D/g, '')
 
   try {
     const usersSnap = await withTimeout(getDocs(collection(firestore, 'users')), 2000, null)
     if (usersSnap && !usersSnap.empty) {
-      const found = usersSnap.docs
+      const matches = usersSnap.docs
         .map((d) => d.data() as UserRecord)
-        .find((u) => u.phone.replace(/\D/g, '') === cleanPhone)
-      if (found) return found
+        .filter((u) => u.phone.replace(/\D/g, '') === cleanPhone)
+      if (matches.length > 0) {
+        if (requestedRole) {
+          const matchWithRole = matches.find((u) => u.role === requestedRole)
+          if (matchWithRole) return matchWithRole
+        }
+        return matches[0]
+      }
     }
   } catch {}
 
-  return inMemoryUsers.find((u) => u.phone.replace(/\D/g, '') === cleanPhone) ?? null
+  const memMatches = inMemoryUsers.filter((u) => u.phone.replace(/\D/g, '') === cleanPhone)
+  if (memMatches.length > 0) {
+    if (requestedRole) {
+      const preferred = memMatches.find((u) => u.role === requestedRole)
+      if (preferred) return preferred
+    }
+    return memMatches[0]
+  }
+  return null
 }
 
 export async function getUserById(id: string): Promise<UserRecord | null> {
@@ -149,7 +163,7 @@ export async function loginOrRegisterUser(
   const cleanPhone = phone.trim().replace(/\D/g, '')
   const isOfficial = cleanPhone === '9999999999' || requestedRole === 'official'
 
-  let user = await getUserByPhone(cleanPhone)
+  let user = await getUserByPhone(cleanPhone, requestedRole)
 
   if (user) {
     let updated = false

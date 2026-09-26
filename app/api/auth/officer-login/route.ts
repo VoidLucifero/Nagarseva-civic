@@ -36,7 +36,7 @@ export async function POST(request: Request) {
     // 2. Self-Service Officer Onboarding / Login:
     // If user exists, log them in & ensure role: 'official' is set.
     // If user does not exist, automatically register them with role: 'official'.
-    const existingUser = await getUserByPhone(cleanPhone)
+    const existingUser = await getUserByPhone(cleanPhone, 'official')
     const officialName = existingUser?.name || (cleanPhone === '9999999999' ? 'Municipal Officer' : 'Municipal Officer')
 
     const user = await loginOrRegisterUser(officialName, cleanPhone, 'official')

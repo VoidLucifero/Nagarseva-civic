@@ -25,7 +25,7 @@ export async function POST(request: Request) {
       )
     }
 
-    // 1. Check secret access code (server-side ONLY)
+    // 1. Verify access code server-side ONLY (never passed or checked on client)
     if (!inputCode || inputCode !== expectedCode) {
       return NextResponse.json(
         { success: false, error: 'Invalid officer access code. Access denied.' },
@@ -33,20 +33,12 @@ export async function POST(request: Request) {
       )
     }
 
-    // 2. Lookup existing user record in database
+    // 2. Self-Service Officer Onboarding / Login:
+    // If user exists, log them in & ensure role: 'official' is set.
+    // If user does not exist, automatically register them with role: 'official'.
     const existingUser = await getUserByPhone(cleanPhone)
+    const officialName = existingUser?.name || (cleanPhone === '9999999999' ? 'Municipal Officer' : 'Municipal Officer')
 
-    // Authorized if demo account (9999999999) OR if user record has role === 'official'
-    const isAuthorizedOfficer = cleanPhone === '9999999999' || existingUser?.role === 'official'
-
-    if (!isAuthorizedOfficer) {
-      return NextResponse.json(
-        { success: false, error: 'Unauthorized: Phone number is not registered to an authorized Municipal Officer.' },
-        { status: 401 },
-      )
-    }
-
-    const officialName = existingUser?.name || (cleanPhone === '9999999999' ? 'Municipal Officer' : 'Officer')
     const user = await loginOrRegisterUser(officialName, cleanPhone, 'official')
 
     const response = NextResponse.json({ success: true, user })

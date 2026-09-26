@@ -5,20 +5,42 @@ service cloud.firestore {
     
     // Issues collection rules
     match /issues/{issueId} {
+      // Anyone can read complaints (public feed & map)
       allow read: if true;
+      
+      // Any authenticated user (including silent anonymous citizens) can create a complaint
       allow create: if request.auth != null;
-      allow update: if request.auth != null;
+      
+      // Upvotes and confirmations allowed for citizens; status and department updates restricted to official role
+      allow update: if request.auth != null && (
+        // Upvotes and confirmations allowed for citizens
+        (request.resource.data.diff(resource.data).affectedKeys().hasOnly(['upvotes', 'confirmations'])) ||
+        // Department and status changes restricted strictly to official role in user document
+        (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'official')
+      );
+
+      // Authenticated users can delete issues (allows cleaning test reports and issue maintenance)
       allow delete: if request.auth != null;
     }
 
+    // Users collection rules - RESTORED OWNERSHIP CHECK (request.auth.uid == userId) & SECURED AGAINST ROLE ELEVATION
     match /users/{userId} {
+      // Anyone can read user documents (public profiles, leaderboard)
       allow read: if true;
+
+      // Users can ONLY create their OWN user document (request.auth.uid == userId)
+      // On CREATE: 'role' can either be omitted or must be explicitly 'citizen' (NEVER 'official')
       allow create: if request.auth != null && request.auth.uid == userId &&
         (!('role' in request.resource.data.keys()) || request.resource.data.role == 'citizen');
+
+      // Users can ONLY update their OWN user document (request.auth.uid == userId)
+      // On UPDATE: 'role' can either be omitted/untouched OR explicitly set to 'citizen' OR remain unchanged
       allow update: if request.auth != null && request.auth.uid == userId &&
         (!('role' in request.resource.data.diff(resource.data).affectedKeys()) ||
          request.resource.data.role == 'citizen' ||
          (resource.data.role != null && request.resource.data.role == resource.data.role));
+
+      // Direct client deletion of user documents is blocked
       allow delete: if false;
     }
   }

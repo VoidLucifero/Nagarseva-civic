@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { UserRecord } from '@/lib/db'
 import { saveClientUser } from '@/lib/client-storage'
+import { auth } from '@/lib/firebase'
 import { DissolvingIntro } from '@/components/dissolving-intro'
 
 export function AuthModal({
@@ -102,10 +103,11 @@ export function AuthModal({
     const endpoint = mode === 'signup' ? '/api/auth/signup' : '/api/auth/login'
 
     try {
+      const activeAuthUid = auth.currentUser?.uid
       const res = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), phone: phone.trim() }),
+        body: JSON.stringify({ name: name.trim(), phone: phone.trim(), authUid: activeAuthUid }),
       })
 
       const data = await res.json()

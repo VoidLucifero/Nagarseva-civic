@@ -4,7 +4,7 @@ import { loginOrRegisterUser } from '@/lib/db'
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { name, phone } = body
+    const { name, phone, authUid } = body
 
     if (!name || typeof name !== 'string' || !name.trim()) {
       return NextResponse.json(
@@ -20,7 +20,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const user = await loginOrRegisterUser(name, phone)
+    const user = await loginOrRegisterUser(name, phone, undefined, authUid)
 
     const response = NextResponse.json({ success: true, user })
     response.cookies.set('civic_user', JSON.stringify(user), {

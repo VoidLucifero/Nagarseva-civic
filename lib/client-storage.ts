@@ -89,9 +89,54 @@ export function mergeClientIssues(serverIssues: Issue[]): Issue[] {
 
 /* User Account Storage & Persistence */
 
+export function purgeStaleUserCache(activeAuthUid?: string) {
+  if (typeof window === 'undefined') return
+  try {
+    // 1. Purge legacy user-XXXX IDs from localStorage nagar_seva_registered_users
+    const rawUsers = localStorage.getItem(USERS_STORAGE_KEY)
+    if (rawUsers) {
+      const parsed = JSON.parse(rawUsers)
+      if (Array.isArray(parsed)) {
+        const cleaned = parsed
+          .filter((u: UserRecord) => {
+            // Filter out pre-unification user-XXXX citizen IDs
+            return !(u.id && u.id.startsWith('user-') && !u.id.startsWith('user-officer-'))
+          })
+          .map((u: UserRecord) => {
+            if (activeAuthUid && u.role === 'citizen' && u.id !== activeAuthUid) {
+              return { ...u, id: activeAuthUid }
+            }
+            return u
+          })
+        localStorage.setItem(USERS_STORAGE_KEY, JSON.stringify(cleaned))
+      }
+    }
+
+    // 2. Purge stale civic_user cookie if it contains pre-unification user-XXXX ID
+    const cookies = document.cookie.split(';')
+    for (const c of cookies) {
+      const [name, val] = c.trim().split('=')
+      if (name === 'civic_user' && val) {
+        try {
+          const parsedCookie = JSON.parse(decodeURIComponent(val))
+          if (parsedCookie.id && parsedCookie.id.startsWith('user-') && !parsedCookie.id.startsWith('user-officer-')) {
+            if (activeAuthUid) {
+              parsedCookie.id = activeAuthUid
+              document.cookie = `civic_user=${encodeURIComponent(JSON.stringify(parsedCookie))}; path=/; max-age=${60 * 60 * 24 * 30}`
+            } else {
+              document.cookie = 'civic_user=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT'
+            }
+          }
+        } catch {}
+      }
+    }
+  } catch {}
+}
+
 export function getClientUsers(): UserRecord[] {
   if (typeof window === 'undefined') return []
   try {
+    purgeStaleUserCache()
     const raw = localStorage.getItem(USERS_STORAGE_KEY)
     if (!raw) return []
     const parsed = JSON.parse(raw)
@@ -104,6 +149,7 @@ export function getClientUsers(): UserRecord[] {
 export function saveClientUser(user: UserRecord) {
   if (typeof window === 'undefined') return
   try {
+    purgeStaleUserCache(user.id)
     const existing = getClientUsers()
     const filtered = existing.filter((u) => u.id !== user.id && u.phone !== user.phone)
     const updated = [user, ...filtered]

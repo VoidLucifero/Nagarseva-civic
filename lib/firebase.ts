@@ -35,6 +35,8 @@ export const googleProvider = new GoogleAuthProvider()
 export const firestore = getFirestore(firebaseApp)
 export const db = firestore
 
+import { purgeStaleUserCache } from './client-storage'
+
 /**
  * Ensures a silent anonymous Firebase Auth session for account-free reporting.
  * Visitors get authenticated behind the scenes so Firestore security rules pass,
@@ -43,13 +45,21 @@ export const db = firestore
  */
 export async function ensureAnonymousAuth() {
   if (typeof window === 'undefined') return null
-  if (auth.currentUser) return auth.currentUser
+  let user = auth.currentUser
 
-  try {
-    const userCredential = await signInAnonymously(auth)
-    return userCredential.user
-  } catch (err: any) {
-    console.warn('Anonymous Firebase auth warning:', err?.message || err)
-    return null
+  if (!user) {
+    try {
+      const userCredential = await signInAnonymously(auth)
+      user = userCredential.user
+    } catch (err: any) {
+      console.warn('Anonymous Firebase auth warning:', err?.message || err)
+      return null
+    }
   }
+
+  if (user?.uid) {
+    purgeStaleUserCache(user.uid)
+  }
+
+  return user
 }

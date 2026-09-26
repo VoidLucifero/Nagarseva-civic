@@ -4,7 +4,7 @@ import { loginOrRegisterUser } from '@/lib/db'
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { name, phone, role } = body
+    const { name, phone, role, authUid } = body
 
     if (!phone || typeof phone !== 'string' || phone.trim().length < 6) {
       return NextResponse.json(
@@ -22,7 +22,7 @@ export async function POST(request: Request) {
       )
     }
 
-    const user = await loginOrRegisterUser(name || 'Citizen', phone, role)
+    const user = await loginOrRegisterUser(name || 'Citizen', phone, role, authUid)
 
     // Create response with user payload and auth cookie
     const response = NextResponse.json({ success: true, user })

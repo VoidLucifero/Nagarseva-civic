@@ -38,6 +38,9 @@ import { mergeClientUsers, getClientUsers } from '@/lib/client-storage'
 import { priorityScore, slaState } from '@/lib/civic'
 import { DEPARTMENTS } from '@/lib/mock-data'
 
+import { ShieldCheck, Lock, ArrowRight } from 'lucide-react'
+import { AuthModal } from '@/components/auth-modal'
+
 export default function OfficialDashboardPage() {
   const [issues, setIssues] = useState<Issue[]>([])
   const [registeredUsers, setRegisteredUsers] = useState<UserRecord[]>([])
@@ -48,7 +51,26 @@ export default function OfficialDashboardPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [updatingId, setUpdatingId] = useState<string | null>(null)
 
+  // Auth & Access Control state
+  const [currentUser, setCurrentUser] = useState<UserRecord | null>(null)
+  const [authChecked, setAuthChecked] = useState(false)
+  const [authModalOpen, setAuthModalOpen] = useState(false)
+
+  const isOfficial = currentUser?.role === 'official' || currentUser?.phone === '9999999999'
+
   useEffect(() => {
+    fetch('/api/auth/me')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data?.user) setCurrentUser(data.user)
+      })
+      .catch(() => {})
+      .finally(() => setAuthChecked(true))
+  }, [])
+
+  useEffect(() => {
+    if (!isOfficial) return
+
     fetch('/api/reports')
       .then((res) => res.json())
       .then((data) => {
@@ -68,7 +90,7 @@ export default function OfficialDashboardPage() {
       .catch(() => {
         setRegisteredUsers(getClientUsers())
       })
-  }, [])
+  }, [isOfficial])
 
   async function handleStatusUpdate(issueId: string, newStatus: IssueStatus) {
     setUpdatingId(issueId)
@@ -150,6 +172,57 @@ export default function OfficialDashboardPage() {
     { name: 'In Progress', count: inProgressCount },
     { name: 'Resolved', count: resolvedCount },
   ]
+
+  if (authChecked && !isOfficial) {
+    return (
+      <div className="flex min-h-dvh flex-col bg-background">
+        <SiteHeader />
+        <main className="flex-1 flex items-center justify-center p-6">
+          <div className="w-full max-w-md rounded-2xl border border-border bg-card p-8 text-center shadow-xl">
+            <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-destructive/10 text-destructive mb-4">
+              <Lock className="size-7" />
+            </div>
+            <h2 className="text-xl font-extrabold text-foreground">Official Access Required</h2>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              The Official Dashboard is restricted to verified municipal officers and department administrators.
+            </p>
+
+            <div className="mt-6 rounded-xl border border-primary/20 bg-primary/5 p-4 text-left text-xs">
+              <p className="font-semibold text-primary flex items-center gap-1.5">
+                <ShieldCheck className="size-4" />
+                Hackathon Demo Access
+              </p>
+              <p className="mt-1 text-muted-foreground">
+                To inspect SLA triage & department controls, sign in as Municipal Officer below (phone: <span className="font-mono font-bold text-foreground">9999999999</span>).
+              </p>
+            </div>
+
+            <div className="mt-6 flex flex-col gap-2">
+              <Button
+                onClick={() => setAuthModalOpen(true)}
+                className="h-10 w-full gap-2 bg-primary font-bold text-primary-foreground hover:bg-primary/90 text-xs"
+              >
+                <ShieldCheck className="size-4" />
+                Sign In as Municipal Officer
+              </Button>
+              <Link href="/">
+                <Button variant="outline" className="h-10 w-full text-xs font-semibold">
+                  Back to Citizen Home
+                </Button>
+              </Link>
+            </div>
+          </div>
+        </main>
+        <SiteFooter />
+        <AuthModal
+          isOpen={authModalOpen}
+          onClose={() => setAuthModalOpen(false)}
+          onSuccess={(u) => setCurrentUser(u)}
+          initialMode="signin"
+        />
+      </div>
+    )
+  }
 
   return (
     <div className="flex min-h-dvh flex-col bg-background">

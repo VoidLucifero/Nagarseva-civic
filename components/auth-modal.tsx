@@ -48,6 +48,41 @@ export function AuthModal({
 
   if (!isOpen) return null
 
+  async function loginAsOfficial() {
+    setLoading(true)
+    try {
+      const res = await fetch('/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: 'Municipal Officer',
+          phone: '9999999999',
+          role: 'official',
+        }),
+      })
+
+      const data = await res.json()
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Official sign in failed.')
+      }
+
+      if (data.user) {
+        saveClientUser(data.user)
+      }
+
+      toast.success('Signed in as Municipal Officer (Official Access)', {
+        description: 'You now have access to the Official Municipal Dashboard.',
+      })
+
+      if (onSuccess) onSuccess(data.user)
+      setLoggedInUser(data.user)
+      setShowDissolve(true)
+    } catch (err: any) {
+      toast.error(err.message || 'Official sign in failed.')
+      setLoading(false)
+    }
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
 
@@ -197,6 +232,22 @@ export function AuthModal({
               : mode === 'signup'
               ? 'Create Account & Sign Up'
               : 'Sign In'}
+          </Button>
+
+          <div className="relative my-2 flex items-center justify-center">
+            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
+            <span className="relative bg-card px-2 text-[10px] text-muted-foreground uppercase font-bold">Or Official Access</span>
+          </div>
+
+          <Button
+            type="button"
+            variant="outline"
+            disabled={loading}
+            onClick={loginAsOfficial}
+            className="h-10 w-full gap-2 border-primary/30 text-xs font-bold text-primary hover:bg-primary/10"
+          >
+            <ShieldCheck className="size-4 text-primary" />
+            🔑 Demo Sign In as Municipal Officer
           </Button>
 
           <div className="pt-2 text-center text-xs">

@@ -244,8 +244,8 @@ export function ReportForm() {
       setSubmittedId(id)
       setStep('success')
       toast.success('Report submitted', { description: `Tracking ID ${id}` })
-    } catch {
-      toast.error('Something went wrong. Please try again.')
+    } catch (err: any) {
+      toast.error(err.message || 'Something went wrong while saving your report. Please try again.')
     } finally {
       setSubmitting(false)
     }

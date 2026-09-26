@@ -25,6 +25,7 @@ export interface UserRecord {
   points: number
   reports: number
   resolved: number
+  role: 'citizen' | 'official'
 }
 
 // In-memory fallback store for offline / read-only serverless execution
@@ -56,6 +57,18 @@ function getInitialUsers(): UserRecord[] {
       points: CURRENT_USER.points,
       reports: CURRENT_USER.reports,
       resolved: CURRENT_USER.resolved,
+      role: 'citizen',
+    },
+    {
+      id: 'user-official-1',
+      name: 'Municipal Officer',
+      phone: '9999999999',
+      initials: 'MO',
+      tier: 'Gold',
+      points: 5000,
+      reports: 0,
+      resolved: 50,
+      role: 'official',
     },
     ...MOCK_REPORTERS.map((r) => ({
       id: r.id,
@@ -66,6 +79,7 @@ function getInitialUsers(): UserRecord[] {
       points: r.points,
       reports: r.reports,
       resolved: 0,
+      role: 'citizen' as const,
     })),
   ]
 }
@@ -137,34 +151,52 @@ export async function getUserById(id: string): Promise<UserRecord | null> {
   return inMemoryUsers.find((u) => u.id === id) ?? null
 }
 
-export async function loginOrRegisterUser(name: string, phone: string): Promise<UserRecord> {
+export async function loginOrRegisterUser(
+  name: string,
+  phone: string,
+  requestedRole?: 'citizen' | 'official',
+): Promise<UserRecord> {
   await ensureSeeded()
   const cleanPhone = phone.trim().replace(/\D/g, '')
+  const isOfficial = cleanPhone === '9999999999' || requestedRole === 'official'
 
   let user = await getUserByPhone(cleanPhone)
 
   if (user) {
+    let updated = false
     if (name.trim() && user.name !== name.trim()) {
       user.name = name.trim()
       user.initials = generateInitials(user.name)
-      setDoc(doc(firestore, 'users', user.id), user, { merge: true }).catch(() => {})
+      updated = true
+    }
+    if (isOfficial && user.role !== 'official') {
+      user.role = 'official'
+      updated = true
+    }
+    if (updated) {
+      setDoc(doc(firestore, 'users', user.id), user, { merge: true }).catch((err) => {
+        console.warn('Failed to update user in Firestore:', err.message || err)
+      })
     }
     return user
   }
 
   const newUser: UserRecord = {
     id: `user-${Date.now()}`,
-    name: name.trim() || 'Citizen',
+    name: name.trim() || (isOfficial ? 'Municipal Officer' : 'Citizen'),
     phone: cleanPhone,
-    initials: generateInitials(name.trim() || 'Citizen'),
-    tier: 'Bronze',
-    points: 50, // Welcome bonus
+    initials: generateInitials(name.trim() || (isOfficial ? 'Municipal Officer' : 'Citizen')),
+    tier: isOfficial ? 'Gold' : 'Bronze',
+    points: isOfficial ? 5000 : 50,
     reports: 0,
-    resolved: 0,
+    resolved: isOfficial ? 10 : 0,
+    role: isOfficial ? 'official' : 'citizen',
   }
 
   inMemoryUsers.push(newUser)
-  setDoc(doc(firestore, 'users', newUser.id), newUser).catch(() => {})
+  setDoc(doc(firestore, 'users', newUser.id), newUser).catch((err) => {
+    console.warn('Failed to register user in Firestore:', err.message || err)
+  })
 
   return newUser
 }
@@ -254,10 +286,16 @@ export async function createIssue(
 
   inMemoryIssues.unshift(issue)
   
-  // Call the new Firestore function to save the issue
-  createIssueInFirestore(issue).catch((err) => {
-    console.warn('createIssueInFirestore error:', err)
-  })
+  // Call Firestore to save issue — log warning if offline, but throw error if rule violation
+  try {
+    await createIssueInFirestore(issue)
+  } catch (err: any) {
+    console.warn('createIssueInFirestore error:', err.message || err)
+    // If error is permission-denied, throw so user UI gets toast notification
+    if (err?.code === 'permission-denied' || err?.message?.includes('permission-denied')) {
+      throw new Error('Firestore permission denied: Database rules rejected the write operation.')
+    }
+  }
 
   // Increment reporter stats in Firestore background
   if (issue.reporterId) {
@@ -332,10 +370,15 @@ export async function updateIssue(id: string, updates: Partial<Issue>): Promise<
 
   issue.updatedAt = new Date().toISOString()
   
-  // Call the new Firestore function to update the issue
-  updateIssueInFirestore(id, issue).catch((err) => {
-    console.warn('updateIssueInFirestore error:', err)
-  })
+  // Call Firestore to update issue
+  try {
+    await updateIssueInFirestore(id, issue)
+  } catch (err: any) {
+    console.warn('updateIssueInFirestore error:', err.message || err)
+    if (err?.code === 'permission-denied' || err?.message?.includes('permission-denied')) {
+      throw new Error('Firestore permission denied: Database rules rejected the update operation.')
+    }
+  }
 
   return issue
 }

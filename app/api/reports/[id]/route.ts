@@ -2,11 +2,33 @@ import { NextResponse } from 'next/server'
 import { updateIssue, getUserById } from '@/lib/db'
 import { sendDirectWhatsAppMessage } from '@/lib/whatsapp-sender'
 
+import { cookies } from 'next/headers'
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ id: string }> },
 ) {
   try {
+    const cookieStore = await cookies()
+    const userCookie = cookieStore.get('civic_user')
+    let isOfficial = false
+
+    if (userCookie?.value) {
+      try {
+        const parsed = JSON.parse(userCookie.value)
+        if (parsed.role === 'official' || parsed.phone === '9999999999') {
+          isOfficial = true
+        }
+      } catch {}
+    }
+
+    if (!isOfficial) {
+      return NextResponse.json(
+        { error: 'Unauthorized. Only Municipal Officers can update complaint status or reassign departments.' },
+        { status: 403 },
+      )
+    }
+
     const { id } = await params
     const body = await request.json()
 

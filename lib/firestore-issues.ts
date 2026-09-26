@@ -73,7 +73,19 @@ export async function getIssuesByReporterFromFirestore(reporterId: string): Prom
   }
 }
 
+import { getAdminFirestore } from '@/lib/firebase-admin'
+
 export async function createIssueInFirestore(issue: Issue): Promise<void> {
+  if (typeof window === 'undefined') {
+    try {
+      const adminDb = getAdminFirestore()
+      await adminDb.collection(ISSUES_COLLECTION).doc(issue.id).set(issue)
+      return
+    } catch (adminErr: any) {
+      console.warn('Admin SDK createIssue warning, falling back to client SDK:', adminErr?.message || adminErr)
+    }
+  }
+
   await ensureAnonymousAuth()
   await withRetry(async () => {
     await setDoc(doc(db, ISSUES_COLLECTION, issue.id), issue)
@@ -81,6 +93,16 @@ export async function createIssueInFirestore(issue: Issue): Promise<void> {
 }
 
 export async function updateIssueInFirestore(id: string, updates: Partial<Issue>): Promise<void> {
+  if (typeof window === 'undefined') {
+    try {
+      const adminDb = getAdminFirestore()
+      await adminDb.collection(ISSUES_COLLECTION).doc(id).set(updates, { merge: true })
+      return
+    } catch (adminErr: any) {
+      console.warn('Admin SDK updateIssue warning, falling back to client SDK:', adminErr?.message || adminErr)
+    }
+  }
+
   await ensureAnonymousAuth()
   await withRetry(async () => {
     await updateDoc(doc(db, ISSUES_COLLECTION, id), updates)

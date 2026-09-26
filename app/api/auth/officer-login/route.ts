@@ -9,7 +9,7 @@ export async function POST(request: Request) {
     const cleanPhone = (phone || '').trim().replace(/\D/g, '')
     const inputCode = (code || '').trim()
 
-    const expectedCode = (process.env.OFFICER_ACCESS_CODE || '847291').trim()
+    const expectedCode = (process.env.OFFICER_ACCESS_CODE || '200723').trim()
 
     if (!cleanPhone || cleanPhone.length < 6) {
       return NextResponse.json(

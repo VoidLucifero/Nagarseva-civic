@@ -13,6 +13,15 @@ export async function POST(request: Request) {
       )
     }
 
+    const cleanPhone = phone.trim().replace(/\D/g, '')
+
+    if (cleanPhone === '9999999999') {
+      return NextResponse.json(
+        { error: 'Municipal Officer phone number detected. Please use the Officer Login tab with access code.' },
+        { status: 400 },
+      )
+    }
+
     const user = await loginOrRegisterUser(name || 'Citizen', phone, role)
 
     // Create response with user payload and auth cookie

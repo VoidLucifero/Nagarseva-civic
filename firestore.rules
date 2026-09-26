@@ -18,6 +18,9 @@ service cloud.firestore {
         // Department and status changes restricted to official users
         (get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'official')
       );
+
+      // Deletion allowed for authenticated users (for test cleanup and issue removal)
+      allow delete: if request.auth != null;
     }
 
     // Users collection rules

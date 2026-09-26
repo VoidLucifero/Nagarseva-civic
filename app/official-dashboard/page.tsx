@@ -190,10 +190,10 @@ export default function OfficialDashboardPage() {
             <div className="mt-6 rounded-xl border border-primary/20 bg-primary/5 p-4 text-left text-xs">
               <p className="font-semibold text-primary flex items-center gap-1.5">
                 <ShieldCheck className="size-4" />
-                Hackathon Demo Access
+                Municipal Officer Credentials
               </p>
               <p className="mt-1 text-muted-foreground">
-                To inspect SLA triage & department controls, sign in as Municipal Officer below (phone: <span className="font-mono font-bold text-foreground">9999999999</span>).
+                To inspect SLA triage &amp; department controls, sign in with Officer Phone (<span className="font-mono font-bold text-foreground">9999999999</span>) and Access Code (<span className="font-mono font-bold text-foreground">847291</span>).
               </p>
             </div>
 
@@ -218,7 +218,7 @@ export default function OfficialDashboardPage() {
           isOpen={authModalOpen}
           onClose={() => setAuthModalOpen(false)}
           onSuccess={(u) => setCurrentUser(u)}
-          initialMode="signin"
+          initialMode="official"
         />
       </div>
     )

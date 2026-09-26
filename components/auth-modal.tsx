@@ -1,14 +1,13 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { Phone, User, X, Loader2, LogIn, UserPlus, CheckCircle2, ShieldCheck } from 'lucide-react'
+import { Phone, User, X, Loader2, LogIn, UserPlus, CheckCircle2, ShieldCheck, KeyRound } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import type { UserRecord } from '@/lib/db'
 import { saveClientUser } from '@/lib/client-storage'
-
 import { DissolvingIntro } from '@/components/dissolving-intro'
 
 export function AuthModal({
@@ -20,11 +19,12 @@ export function AuthModal({
   isOpen: boolean
   onClose: () => void
   onSuccess?: (user: UserRecord) => void
-  initialMode?: 'signin' | 'signup'
+  initialMode?: 'signin' | 'signup' | 'official'
 }) {
-  const [mode, setMode] = useState<'signin' | 'signup'>(initialMode)
+  const [mode, setMode] = useState<'signin' | 'signup' | 'official'>(initialMode)
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
+  const [code, setCode] = useState('')
   const [loading, setLoading] = useState(false)
   const [showDissolve, setShowDissolve] = useState(false)
   const [loggedInUser, setLoggedInUser] = useState<UserRecord | null>(null)
@@ -48,41 +48,6 @@ export function AuthModal({
 
   if (!isOpen) return null
 
-  async function loginAsOfficial() {
-    setLoading(true)
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: 'Municipal Officer',
-          phone: '9999999999',
-          role: 'official',
-        }),
-      })
-
-      const data = await res.json()
-      if (!res.ok || !data.success) {
-        throw new Error(data.error || 'Official sign in failed.')
-      }
-
-      if (data.user) {
-        saveClientUser(data.user)
-      }
-
-      toast.success('Signed in as Municipal Officer (Official Access)', {
-        description: 'You now have access to the Official Municipal Dashboard.',
-      })
-
-      if (onSuccess) onSuccess(data.user)
-      setLoggedInUser(data.user)
-      setShowDissolve(true)
-    } catch (err: any) {
-      toast.error(err.message || 'Official sign in failed.')
-      setLoading(false)
-    }
-  }
-
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
 
@@ -96,7 +61,44 @@ export function AuthModal({
       return
     }
 
+    if (mode === 'official' && (!code.trim() || code.trim().length < 4)) {
+      toast.error('Please enter the secret officer access code.')
+      return
+    }
+
     setLoading(true)
+
+    if (mode === 'official') {
+      try {
+        const res = await fetch('/api/auth/officer-login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ phone: phone.trim(), code: code.trim() }),
+        })
+
+        const data = await res.json()
+        if (!res.ok || !data.success) {
+          throw new Error(data.error || 'Officer authentication failed.')
+        }
+
+        if (data.user) {
+          saveClientUser(data.user)
+        }
+
+        toast.success('Officer Access Verified!', {
+          description: 'Welcome Municipal Officer. Accessing Dashboard...',
+        })
+
+        if (onSuccess) onSuccess(data.user)
+        setLoggedInUser(data.user)
+        setShowDissolve(true)
+      } catch (err: any) {
+        toast.error(err.message || 'Officer login failed. Access denied.')
+        setLoading(false)
+      }
+      return
+    }
+
     const endpoint = mode === 'signup' ? '/api/auth/signup' : '/api/auth/login'
 
     try {
@@ -143,11 +145,11 @@ export function AuthModal({
         </button>
 
         {/* Tab Switcher */}
-        <div className="mx-auto flex w-full max-w-xs rounded-xl bg-secondary/80 p-1 mb-6">
+        <div className="mx-auto flex w-full rounded-xl bg-secondary/80 p-1 mb-6">
           <button
             type="button"
             onClick={() => setMode('signup')}
-            className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all ${
+            className={`flex-1 flex items-center justify-center gap-1 rounded-lg py-2 text-[11px] font-semibold transition-all ${
               mode === 'signup'
                 ? 'bg-card text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
@@ -159,7 +161,7 @@ export function AuthModal({
           <button
             type="button"
             onClick={() => setMode('signin')}
-            className={`flex-1 flex items-center justify-center gap-1.5 rounded-lg py-2 text-xs font-semibold transition-all ${
+            className={`flex-1 flex items-center justify-center gap-1 rounded-lg py-2 text-[11px] font-semibold transition-all ${
               mode === 'signin'
                 ? 'bg-card text-foreground shadow-sm'
                 : 'text-muted-foreground hover:text-foreground'
@@ -168,19 +170,43 @@ export function AuthModal({
             <LogIn className="size-3.5" />
             Sign In
           </button>
+          <button
+            type="button"
+            onClick={() => setMode('official')}
+            className={`flex-1 flex items-center justify-center gap-1 rounded-lg py-2 text-[11px] font-semibold transition-all ${
+              mode === 'official'
+                ? 'bg-primary text-primary-foreground shadow-sm font-bold'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            <ShieldCheck className="size-3.5" />
+            Officer Login
+          </button>
         </div>
 
         <div className="text-center">
           <div className="mx-auto flex size-12 items-center justify-center rounded-full bg-primary/10 text-primary">
-            {mode === 'signup' ? <UserPlus className="size-6" /> : <LogIn className="size-6" />}
+            {mode === 'signup' ? (
+              <UserPlus className="size-6" />
+            ) : mode === 'signin' ? (
+              <LogIn className="size-6" />
+            ) : (
+              <ShieldCheck className="size-6 text-primary" />
+            )}
           </div>
           <h2 className="mt-3 text-xl font-bold text-foreground">
-            {mode === 'signup' ? 'Create NagarSeva Account' : 'Welcome Back'}
+            {mode === 'signup'
+              ? 'Create NagarSeva Account'
+              : mode === 'signin'
+              ? 'Welcome Back'
+              : 'Municipal Officer Portal'}
           </h2>
           <p className="mt-1 text-xs text-muted-foreground">
             {mode === 'signup'
               ? 'Register with your name and phone number to report issues, earn points, and track progress.'
-              : 'Enter your phone number to access your existing reports and Civic points.'}
+              : mode === 'signin'
+              ? 'Enter your phone number to access your existing reports and Civic points.'
+              : 'Restricted login for municipal officers. Secret access code required.'}
           </p>
         </div>
 
@@ -204,13 +230,15 @@ export function AuthModal({
           )}
 
           <div className="space-y-1.5">
-            <Label htmlFor="auth-phone">Phone Number</Label>
+            <Label htmlFor="auth-phone">
+              {mode === 'official' ? 'Officer Phone Number' : 'Phone Number'}
+            </Label>
             <div className="relative">
               <Phone className="absolute left-3 top-2.5 size-4 text-muted-foreground" />
               <Input
                 id="auth-phone"
                 type="tel"
-                placeholder="e.g. 9876543210"
+                placeholder={mode === 'official' ? 'e.g. 9999999999' : 'e.g. 9876543210'}
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 className="pl-9"
@@ -219,35 +247,45 @@ export function AuthModal({
             </div>
           </div>
 
+          {mode === 'official' && (
+            <div className="space-y-1.5 animate-in fade-in duration-150">
+              <Label htmlFor="auth-code">Secret Access Code</Label>
+              <div className="relative">
+                <KeyRound className="absolute left-3 top-2.5 size-4 text-primary" />
+                <Input
+                  id="auth-code"
+                  type="password"
+                  placeholder="Enter 6-digit PIN"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value)}
+                  className="pl-9 font-mono"
+                  required={mode === 'official'}
+                />
+              </div>
+            </div>
+          )}
+
           <Button
             type="submit"
             disabled={loading}
-            className="h-11 w-full gap-2 bg-accent font-semibold text-accent-foreground hover:bg-accent/90"
+            className={`h-11 w-full gap-2 font-semibold ${
+              mode === 'official'
+                ? 'bg-primary text-primary-foreground hover:bg-primary/90'
+                : 'bg-accent text-accent-foreground hover:bg-accent/90'
+            }`}
           >
             {loading ? <Loader2 className="size-4 animate-spin" /> : <CheckCircle2 className="size-4" />}
             {loading
               ? mode === 'signup'
                 ? 'Creating Account…'
-                : 'Signing In…'
+                : mode === 'signin'
+                ? 'Signing In…'
+                : 'Verifying Officer Code…'
               : mode === 'signup'
               ? 'Create Account & Sign Up'
-              : 'Sign In'}
-          </Button>
-
-          <div className="relative my-2 flex items-center justify-center">
-            <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
-            <span className="relative bg-card px-2 text-[10px] text-muted-foreground uppercase font-bold">Or Official Access</span>
-          </div>
-
-          <Button
-            type="button"
-            variant="outline"
-            disabled={loading}
-            onClick={loginAsOfficial}
-            className="h-10 w-full gap-2 border-primary/30 text-xs font-bold text-primary hover:bg-primary/10"
-          >
-            <ShieldCheck className="size-4 text-primary" />
-            🔑 Demo Sign In as Municipal Officer
+              : mode === 'signin'
+              ? 'Sign In'
+              : 'Verify & Access Dashboard'}
           </Button>
 
           <div className="pt-2 text-center text-xs">
@@ -262,7 +300,7 @@ export function AuthModal({
                   Sign In
                 </button>
               </p>
-            ) : (
+            ) : mode === 'signin' ? (
               <p className="text-muted-foreground">
                 Need an account?{' '}
                 <button
@@ -273,12 +311,25 @@ export function AuthModal({
                   Sign Up
                 </button>
               </p>
+            ) : (
+              <p className="text-muted-foreground">
+                Citizen user?{' '}
+                <button
+                  type="button"
+                  onClick={() => setMode('signin')}
+                  className="font-semibold text-primary underline underline-offset-2"
+                >
+                  Return to Citizen Login
+                </button>
+              </p>
             )}
           </div>
 
           <p className="flex items-center justify-center gap-1 text-center text-[11px] text-muted-foreground">
             <ShieldCheck className="size-3 text-status-resolved" />
-            No passwords required. Your account is tied to your phone number.
+            {mode === 'official'
+              ? 'Server-side access code verification active.'
+              : 'No passwords required. Your account is tied to your phone number.'}
           </p>
         </form>
       </div>

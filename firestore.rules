@@ -30,12 +30,15 @@ service cloud.firestore {
       allow read: if true;
 
       // Users can ONLY create/update their OWN user document (request.auth.uid == userId)
-      // AND CAN NEVER TOUCH OR SET THE 'role' FIELD VIA CLIENT WRITES!
+      // On CREATE: 'role' can either be omitted or must be explicitly 'citizen' (NEVER 'official')
       allow create: if request.auth != null && request.auth.uid == userId &&
-        !('role' in request.resource.data.keys());
+        (!('role' in request.resource.data.keys()) || request.resource.data.role == 'citizen');
 
+      // On UPDATE: 'role' can either be omitted/untouched OR explicitly set to 'citizen' OR remain unchanged
       allow update: if request.auth != null && request.auth.uid == userId &&
-        !('role' in request.resource.data.diff(resource.data).affectedKeys());
+        (!('role' in request.resource.data.diff(resource.data).affectedKeys()) ||
+         request.resource.data.role == 'citizen' ||
+         (resource.data.role != null && request.resource.data.role == resource.data.role));
 
       // Direct client deletion of user documents is blocked
       allow delete: if false;

@@ -35,6 +35,8 @@ const SEVERITIES: Severity[] = ['Low', 'Medium', 'High']
 
 import { enqueueOfflineReport, flushOfflineQueue } from '@/lib/offline-queue'
 import { Copy, WifiOff, ExternalLink, RefreshCw } from 'lucide-react'
+import { auth, ensureAnonymousAuth } from '@/lib/firebase'
+import { getClientUsers } from '@/lib/client-storage'
 
 type Step = 'photo' | 'analyzing' | 'details' | 'success' | 'offline_queued'
 
@@ -270,6 +272,15 @@ export function ReportForm() {
   async function handleSubmit() {
     setSubmitting(true)
 
+    let currentUid = auth.currentUser?.uid
+    if (!currentUid) {
+      const user = await ensureAnonymousAuth()
+      currentUid = user?.uid || auth.currentUser?.uid
+    }
+
+    const localUsers = getClientUsers()
+    const activeProfile = (currentUid && localUsers.find((u) => u.id === currentUid)) || localUsers[0]
+
     const payload = {
       category,
       severity,
@@ -280,6 +291,9 @@ export function ReportForm() {
       gpsVerified: deviceLocation.gpsVerified,
       photo: photoPreview,
       duplicateOf: duplicateChoice === 'same' ? similarIssue?.id : undefined,
+      reporter: activeProfile?.name || 'Citizen',
+      reporterId: currentUid || activeProfile?.id || 'anonymous-citizen',
+      phone: activeProfile?.phone || '9876543210',
     }
 
     // Check offline status before network call

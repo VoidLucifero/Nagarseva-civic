@@ -329,7 +329,7 @@ export async function createIssue(
     upvotes: 1,
     aiConfidence: 94,
     reporter: newIssueData.reporter || 'Citizen',
-    reporterId: newIssueData.reporterId || auth.currentUser?.uid || CURRENT_USER.id,
+    reporterId: newIssueData.reporterId || auth.currentUser?.uid || 'anonymous-citizen',
     department: 'Public Works',
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString(),

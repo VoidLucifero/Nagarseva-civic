@@ -9,7 +9,8 @@ import {
   updateDoc,
   where,
 } from 'firebase/firestore'
-import { db, ensureAnonymousAuth } from '@/lib/firebase'
+import { signInAnonymously } from 'firebase/auth'
+import { db, auth, ensureAnonymousAuth } from '@/lib/firebase'
 import type { Issue } from '@/lib/types'
 
 const ISSUES_COLLECTION = 'issues'
@@ -86,6 +87,11 @@ export async function createIssueInFirestore(issue: Issue): Promise<void> {
     }
   }
 
+  if (!auth.currentUser) {
+    try {
+      await signInAnonymously(auth)
+    } catch {}
+  }
   await ensureAnonymousAuth()
   await withRetry(async () => {
     await setDoc(doc(db, ISSUES_COLLECTION, issue.id), issue)
@@ -103,6 +109,11 @@ export async function updateIssueInFirestore(id: string, updates: Partial<Issue>
     }
   }
 
+  if (!auth.currentUser) {
+    try {
+      await signInAnonymously(auth)
+    } catch {}
+  }
   await ensureAnonymousAuth()
   await withRetry(async () => {
     await updateDoc(doc(db, ISSUES_COLLECTION, id), updates)

@@ -1,5 +1,5 @@
 import { initializeApp, getApps, getApp } from 'firebase/app'
-import { getAuth, GoogleAuthProvider } from 'firebase/auth'
+import { getAuth, signInAnonymously, GoogleAuthProvider } from 'firebase/auth'
 import { getFirestore } from 'firebase/firestore'
 
 const firebaseConfig = {
@@ -34,3 +34,21 @@ export const auth = getAuth(firebaseApp)
 export const googleProvider = new GoogleAuthProvider()
 export const firestore = getFirestore(firebaseApp)
 export const db = firestore
+
+/**
+ * Ensures a silent anonymous Firebase Auth session for account-free reporting.
+ * Visitors get authenticated behind the scenes so Firestore security rules pass,
+ * while keeping the reporting UX 100% account-free.
+ */
+export async function ensureAnonymousAuth() {
+  if (typeof window === 'undefined') return null
+  if (auth.currentUser) return auth.currentUser
+
+  try {
+    const userCredential = await signInAnonymously(auth)
+    return userCredential.user
+  } catch (err: any) {
+    console.warn('Anonymous Firebase auth warning:', err?.message || err)
+    return null
+  }
+}

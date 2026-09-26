@@ -20,6 +20,8 @@ const NAV = [
   { href: '/profile', label: 'My Profile' },
 ]
 
+import { ensureAnonymousAuth } from '@/lib/firebase'
+
 export function SiteHeader() {
   const pathname = usePathname()
   const [open, setOpen] = useState(false)
@@ -35,6 +37,7 @@ export function SiteHeader() {
   const unreadCount = notifications.filter((n) => n.unread).length
 
   useEffect(() => {
+    ensureAnonymousAuth()
     fetch('/api/auth/me')
       .then((res) => res.json())
       .then((data) => {

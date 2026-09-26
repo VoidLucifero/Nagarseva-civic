@@ -33,7 +33,10 @@ import type { Category, Severity } from '@/lib/types'
 
 const SEVERITIES: Severity[] = ['Low', 'Medium', 'High']
 
-type Step = 'photo' | 'analyzing' | 'details' | 'success'
+import { enqueueOfflineReport, flushOfflineQueue } from '@/lib/offline-queue'
+import { Copy, WifiOff, ExternalLink, RefreshCw } from 'lucide-react'
+
+type Step = 'photo' | 'analyzing' | 'details' | 'success' | 'offline_queued'
 
 export function ReportForm() {
   const cameraInputRef = useRef<HTMLInputElement>(null)
@@ -229,23 +232,48 @@ export function ReportForm() {
 
   async function handleSubmit() {
     setSubmitting(true)
-    try {
-      const { id } = await submitReport({
-        category,
-        severity,
-        description,
-        address: deviceLocation.address,
-        lat: deviceLocation.lat,
-        lng: deviceLocation.lng,
-        gpsVerified: deviceLocation.gpsVerified,
-        photo: photoPreview,
-        duplicateOf: duplicateChoice === 'same' ? similarIssue?.id : undefined,
+
+    const payload = {
+      category,
+      severity,
+      description,
+      address: deviceLocation.address,
+      lat: deviceLocation.lat,
+      lng: deviceLocation.lng,
+      gpsVerified: deviceLocation.gpsVerified,
+      photo: photoPreview,
+      duplicateOf: duplicateChoice === 'same' ? similarIssue?.id : undefined,
+    }
+
+    // Check offline status before network call
+    if (typeof window !== 'undefined' && !navigator.onLine) {
+      const queuedItem = enqueueOfflineReport(payload)
+      setSubmittedId(queuedItem.queueId)
+      setStep('offline_queued')
+      toast.info('Network offline — report saved locally on device!', {
+        description: 'It will automatically sync to municipal care once reconnected.',
       })
+      setSubmitting(false)
+      return
+    }
+
+    try {
+      const { id } = await submitReport(payload)
       setSubmittedId(id)
       setStep('success')
-      toast.success('Report submitted', { description: `Tracking ID ${id}` })
+      toast.success('Report submitted successfully!', { description: `Tracking ID ${id}` })
     } catch (err: any) {
-      toast.error(err.message || 'Something went wrong while saving your report. Please try again.')
+      // If network request failed or device lost connectivity mid-request
+      if (typeof window !== 'undefined' && (!navigator.onLine || err?.message?.includes('fetch'))) {
+        const queuedItem = enqueueOfflineReport(payload)
+        setSubmittedId(queuedItem.queueId)
+        setStep('offline_queued')
+        toast.info('Network blip — report saved to local offline queue!', {
+          description: 'Will submit automatically when connection restores.',
+        })
+      } else {
+        toast.error(err.message || 'Something went wrong while saving your report. Please try again.')
+      }
     } finally {
       setSubmitting(false)
     }
@@ -263,6 +291,75 @@ export function ReportForm() {
     setShowLiveCamera(false)
   }
 
+  if (step === 'offline_queued' && submittedId) {
+    return (
+      <Card className="mx-auto max-w-lg items-center px-6 py-10 text-center shadow-lg border-amber-500/30 bg-amber-500/5">
+        <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-amber-500/15 text-amber-600">
+          <WifiOff className="size-7" />
+        </div>
+        <h2 className="mt-4 text-xl font-bold text-foreground">Report Saved Locally (Offline Queue)</h2>
+        <p className="mt-1 max-w-sm text-pretty text-xs text-muted-foreground">
+          Your report with photo &amp; GPS coordinates is safely saved on your device. It will automatically submit to the municipal care database the moment your connectivity returns.
+        </p>
+
+        <div className="mt-4 flex items-center justify-center gap-2 rounded-lg border border-amber-500/30 bg-card px-4 py-2">
+          <span className="text-xs text-muted-foreground">Queue Ticket ID</span>
+          <span className="font-mono text-xs font-bold text-foreground">{submittedId}</span>
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard.writeText(submittedId)
+              toast.success('Ticket ID copied to clipboard')
+            }}
+            className="ml-2 text-muted-foreground hover:text-foreground"
+            title="Copy ID"
+          >
+            <Copy className="size-3.5" />
+          </button>
+        </div>
+
+        <div className="mt-5 w-full rounded-xl border border-border bg-card p-4 text-left space-y-2">
+          <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
+            <RefreshCw className="size-3.5 text-amber-500 animate-spin" />
+            Automatic Background Sync Active
+          </p>
+          <p className="text-[11px] text-muted-foreground">
+            We are continuously monitoring your network state. You do not need to keep this page open.
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={async () => {
+              const res = await flushOfflineQueue()
+              if (res.synced > 0) {
+                setStep('success')
+              } else {
+                toast.info('Still offline or no connection established yet.')
+              }
+            }}
+            className="mt-2 w-full h-8 text-xs font-bold gap-1.5"
+          >
+            <RefreshCw className="size-3.5" />
+            Try Syncing Now
+          </Button>
+        </div>
+
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+          <Button variant="outline" onClick={reset} className="h-9 text-xs font-medium">
+            Report another issue
+          </Button>
+          <Link
+            href="/explore"
+            className={cn('h-9 px-4', 'inline-flex items-center justify-center rounded-lg bg-accent text-xs font-semibold text-accent-foreground hover:bg-accent/90')}
+          >
+            View the map
+          </Link>
+        </div>
+      </Card>
+    )
+  }
+
   if (step === 'success' && submittedId) {
     const whatsappUrl = generateWhatsAppShareLink({
       id: submittedId,
@@ -273,27 +370,65 @@ export function ReportForm() {
 
     return (
       <Card className="mx-auto max-w-lg items-center px-6 py-10 text-center shadow-lg">
-        <div className="flex size-14 items-center justify-center rounded-full bg-status-resolved/15 text-status-resolved">
+        <div className="mx-auto flex size-14 items-center justify-center rounded-full bg-status-resolved/15 text-status-resolved">
           <CheckCircle2 className="size-7" />
         </div>
-        <h2 className="mt-4 text-xl font-bold text-foreground">Report Submitted Successfully!</h2>
-        <p className="mt-1 max-w-sm text-pretty text-sm text-muted-foreground">
-          Thanks for flagging this — it's already routed toward the right department. We'll
-          notify you the moment its status changes.
+        <h2 className="mt-4 text-xl font-bold text-foreground">Report Submitted &amp; Verified!</h2>
+        <p className="mt-1 max-w-sm text-pretty text-xs text-muted-foreground">
+          Confirmed in database — routed directly to municipal department for triage &amp; crew dispatch.
         </p>
 
-        <div className="mt-5 flex items-center justify-center gap-2 rounded-lg border border-border bg-secondary/50 px-4 py-2">
+        {/* Durable Proof of Existence Header */}
+        <div className="mt-4 flex items-center justify-center gap-2 rounded-lg border border-border bg-secondary/50 px-4 py-2.5">
           <span className="text-xs text-muted-foreground">Tracking ID</span>
-          <span className="font-mono text-sm font-semibold text-foreground">{submittedId}</span>
+          <span className="font-mono text-sm font-bold text-foreground">{submittedId}</span>
+          <button
+            type="button"
+            onClick={() => {
+              navigator.clipboard.writeText(submittedId)
+              toast.success('Tracking ID copied to clipboard!')
+            }}
+            className="ml-2 text-muted-foreground hover:text-foreground"
+            title="Copy ID"
+          >
+            <Copy className="size-4" />
+          </button>
+        </div>
+
+        {/* Independent Proof of Existence Verification Links */}
+        <div className="mt-5 w-full rounded-xl border border-primary/20 bg-primary/5 p-4 text-left space-y-2.5">
+          <p className="text-xs font-bold text-primary flex items-center gap-1.5">
+            <CheckCircle2 className="size-4" />
+            Independent Proof of Existence
+          </p>
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            Your complaint is permanently stored. You can verify and track it independently anytime across these pages:
+          </p>
+          <div className="grid grid-cols-1 gap-2 pt-1 sm:grid-cols-2">
+            <Link
+              href="/public-complaint-feed"
+              className="inline-flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground hover:border-primary/50 transition-colors"
+            >
+              <span>Public Feed</span>
+              <ExternalLink className="size-3 text-muted-foreground" />
+            </Link>
+            <Link
+              href="/profile"
+              className="inline-flex items-center justify-between rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold text-foreground hover:border-primary/50 transition-colors"
+            >
+              <span>My Profile</span>
+              <ExternalLink className="size-3 text-muted-foreground" />
+            </Link>
+          </div>
         </div>
 
         {/* Direct WhatsApp Notification Card */}
-        <div className="mt-6 w-full rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-center">
+        <div className="mt-5 w-full rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-4 text-center">
           <p className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400">
             📱 Direct WhatsApp Notification
           </p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Get instant complaint tracking alerts & live map link sent directly to your WhatsApp.
+            Get instant complaint tracking alerts &amp; live map link sent directly to your WhatsApp.
           </p>
           <a
             href={whatsappUrl}
@@ -310,7 +445,10 @@ export function ReportForm() {
           <Button variant="outline" onClick={reset} className="h-10 px-5 font-medium">
             Report another issue
           </Button>
-          <Link href="/explore" className={cn('h-10 px-5', 'inline-flex items-center justify-center rounded-lg bg-accent text-sm font-semibold text-accent-foreground hover:bg-accent/90')}>
+          <Link
+            href="/explore"
+            className={cn('h-10 px-5', 'inline-flex items-center justify-center rounded-lg bg-accent text-sm font-semibold text-accent-foreground hover:bg-accent/90')}
+          >
             View the map
           </Link>
         </div>

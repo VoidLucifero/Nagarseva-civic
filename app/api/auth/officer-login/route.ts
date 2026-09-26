@@ -9,7 +9,14 @@ export async function POST(request: Request) {
     const cleanPhone = (phone || '').trim().replace(/\D/g, '')
     const inputCode = (code || '').trim()
 
-    const expectedCode = (process.env.OFFICER_ACCESS_CODE || '200723').trim()
+    const expectedCode = process.env.OFFICER_ACCESS_CODE ? process.env.OFFICER_ACCESS_CODE.trim() : ''
+
+    if (!expectedCode) {
+      return NextResponse.json(
+        { success: false, error: 'Officer authentication is disabled: OFFICER_ACCESS_CODE environment variable is not set on the server.' },
+        { status: 500 },
+      )
+    }
 
     if (!cleanPhone || cleanPhone.length < 6) {
       return NextResponse.json(

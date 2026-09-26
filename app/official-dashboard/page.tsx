@@ -193,7 +193,7 @@ export default function OfficialDashboardPage() {
                 Municipal Officer Credentials
               </p>
               <p className="mt-1 text-muted-foreground">
-                To inspect SLA triage &amp; department controls, sign in with Officer Phone (<span className="font-mono font-bold text-foreground">9999999999</span>) and Access Code (<span className="font-mono font-bold text-foreground">200723</span>).
+                To inspect SLA triage &amp; department controls, sign in with Officer Phone (<span className="font-mono font-bold text-foreground">9999999999</span>) and secret Access Code.
               </p>
             </div>
 

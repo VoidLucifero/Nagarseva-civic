@@ -39,6 +39,7 @@ export const db = firestore
  * Ensures a silent anonymous Firebase Auth session for account-free reporting.
  * Visitors get authenticated behind the scenes so Firestore security rules pass,
  * while keeping the reporting UX 100% account-free.
+ * (Vercel Auto-Deploy Webhook Verification)
  */
 export async function ensureAnonymousAuth() {
   if (typeof window === 'undefined') return null

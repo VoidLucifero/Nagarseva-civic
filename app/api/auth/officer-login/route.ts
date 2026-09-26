@@ -4,7 +4,7 @@ import { getUserByPhone, loginOrRegisterUser } from '@/lib/db'
 export async function POST(request: Request) {
   try {
     const body = await request.json()
-    const { phone, code } = body
+    const { phone, code, authUid } = body
 
     const cleanPhone = (phone || '').trim().replace(/\D/g, '')
     const inputCode = (code || '').trim()
@@ -39,7 +39,7 @@ export async function POST(request: Request) {
     const existingUser = await getUserByPhone(cleanPhone, 'official')
     const officialName = existingUser?.name || (cleanPhone === '9999999999' ? 'Municipal Officer' : 'Municipal Officer')
 
-    const user = await loginOrRegisterUser(officialName, cleanPhone, 'official')
+    const user = await loginOrRegisterUser(officialName, cleanPhone, 'official', authUid)
 
     const response = NextResponse.json({ success: true, user })
     response.cookies.set('civic_user', JSON.stringify(user), {

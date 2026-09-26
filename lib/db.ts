@@ -176,14 +176,15 @@ export async function loginOrRegisterUser(
       user.role = 'official'
       updated = true
     }
-    if (updated) {
-      if (isOfficial) {
-        serverSetOfficerRole(user).catch(() => {})
-      } else {
-        setDoc(doc(firestore, 'users', user.id), user, { merge: true }).catch((err) => {
-          console.warn('Failed to update user in Firestore:', err.message || err)
-        })
+    if (isOfficial) {
+      serverSetOfficerRole(user).catch(() => {})
+      if (authUid && authUid !== user.id) {
+        serverSetOfficerRole({ ...user, id: authUid }).catch(() => {})
       }
+    } else if (updated) {
+      setDoc(doc(firestore, 'users', user.id), user, { merge: true }).catch((err) => {
+        console.warn('Failed to update user in Firestore:', err.message || err)
+      })
     }
     return user
   }
